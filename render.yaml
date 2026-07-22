@@ -1,0 +1,24 @@
+# Render deployment blueprint for the Pick Up backend.
+# Deploy: push to GitHub → render.com → New → Blueprint → pick this repo.
+# Render reads this file and provisions the service automatically.
+#
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: pickup-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # A strong secret is generated once by Render and kept stable.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 30d
+      # Set your deployed frontend origin(s) here once you have them, e.g.
+      # https://pickup.yourdomain.com — leave blank to allow all (fine for MVP).
+      - key: ALLOWED_ORIGINS
+        sync: false

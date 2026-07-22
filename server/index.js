@@ -1,7 +1,11 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
@@ -10,23 +14,51 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
+// ---- Configuration (all overridable via environment variables) ----
+const PORT = process.env.PORT || 5001;
+const JWT_SECRET = process.env.JWT_SECRET || 'pickup-dev-secret-change-me';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
+
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    '⚠️  JWT_SECRET is not set — using an insecure development default. ' +
+    'Set JWT_SECRET in your environment before deploying to production.'
+  );
+}
+
+// CORS: in dev (no ALLOWED_ORIGINS) allow all origins so local network / native
+// testing works. In production set ALLOWED_ORIGINS to a comma-separated list.
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : true;
+
 const io = socketIo(server, {
   cors: {
-    origin: true, // Allow all origins for local network access
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-const PORT = process.env.PORT || 5001;
-const JWT_SECRET = 'pickup-secret-key-change-in-production';
-
-// Middleware
+// ---- Security & parsing middleware ----
+// helmet sets safe HTTP headers. CSP and CORP are disabled because this server
+// also serves the React app and is called cross-origin by the web/native client.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(cors({
-  origin: true, // Allow all origins for local network access
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
+
+// Rate limiter for authentication endpoints to slow down brute-force attempts.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,                   // max attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again later.' }
+});
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../client/build')));
@@ -213,18 +245,33 @@ const authenticateToken = (req, res, next) => {
 
 // Routes
 
+// Health check — used by hosting platforms (Render, Railway, etc.) to verify
+// the server is alive, and handy for a quick "is it up?" curl.
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
 // Register
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authLimiter, async (req, res) => {
   const { username, email, password } = req.body;
-  
+
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  // Basic input validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address' });
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const userId = uuidv4();
-    
+
     db.run(
       'INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)',
       [userId, username, email, hashedPassword],
@@ -235,8 +282,8 @@ app.post('/api/register', async (req, res) => {
           }
           return res.status(500).json({ error: 'Database error' });
         }
-        
-        const token = jwt.sign({ id: userId, username }, JWT_SECRET);
+
+        const token = jwt.sign({ id: userId, username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
         res.json({ token, user: { id: userId, username, email } });
       }
     );
@@ -246,9 +293,9 @@ app.post('/api/register', async (req, res) => {
 });
 
 // Login
-app.post('/api/login', (req, res) => {
+app.post('/api/login', authLimiter, (req, res) => {
   const { email, password } = req.body;
-  
+
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
@@ -261,7 +308,7 @@ app.post('/api/login', (req, res) => {
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
 
-      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
+      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
       res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
     } catch (error) {
       res.status(500).json({ error: 'Server error' });
@@ -1104,9 +1151,20 @@ io.on('connection', (socket) => {
   });
 });
 
-// Catch-all handler: send back React's index.html file for any non-API routes
+// Catch-all handler: send back React's index.html for any non-API route.
+// When the backend is deployed on its own (no client build present — the common
+// case for the native app, which bundles its own web assets), respond with JSON
+// instead of crashing on a missing file.
+const indexHtmlPath = path.join(__dirname, '../client/build/index.html');
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+  res.sendFile(indexHtmlPath, (err) => {
+    if (err) {
+      res.status(200).json({
+        message: 'Pick Up API is running. The web client is not bundled with this deployment.',
+        health: '/api/health'
+      });
+    }
+  });
 });
 
 server.listen(PORT, '0.0.0.0', () => {

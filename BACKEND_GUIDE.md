@@ -233,35 +233,48 @@ for a Node + Socket.io app:
 and don't hold a long-lived Socket.io connection or a persistent SQLite file well.
 Use them for the *frontend* if you want, but host the Express server on Render/Railway.
 
-### Deploy to Render (typical flow)
+### Deploy to Render (one-click with the included blueprint)
+This repo ships a **`render.yaml`** blueprint, so Render configures everything for you:
 1. Push this repo to GitHub.
-2. On Render: **New → Web Service**, connect the repo.
-3. Set **Root Directory** = `server`, **Build Command** = `npm install`,
-   **Start Command** = `npm start`.
-4. Render gives you `https://pickup-api.onrender.com`. Put that in your
+2. On Render: **New → Blueprint**, connect the repo. Render reads `render.yaml`,
+   sets the root dir to `server`, build `npm install`, start `npm start`, and the
+   health check to `/api/health`. It also auto-generates a secure `JWT_SECRET`.
+3. Render gives you `https://pickup-api.onrender.com`. Put that in your
    `client/.env` as `REACT_APP_API_URL`, then rebuild the iOS app.
+
+> Prefer manual setup? **New → Web Service**, root directory `server`, build
+> `npm install`, start `npm start`, and add the env vars from `server/.env.example`.
 
 ---
 
-## 8. Before real users: the "grown-up" checklist
+## 8. Production hardening — what's already done, and what's left
 
-Your backend is a great MVP. These are the things to harden before it's production-grade:
+A hardening pass has already been applied to `server/index.js`. **Done ✅:**
 
-1. **Move the JWT secret to an env var.** Right now `JWT_SECRET` is hardcoded in
-   `index.js` (line ~22). Anyone who sees the code can forge logins. Use
-   `process.env.JWT_SECRET` and set it on your host.
-2. **Give tokens an expiry:** `jwt.sign(payload, SECRET, { expiresIn: '7d' })`.
-3. **Outgrow SQLite when you scale.** SQLite is a single file — perfect for an MVP and
-   one server. When you need multiple servers or lots of concurrent writes, migrate to
-   **PostgreSQL** (Render/Railway offer managed Postgres). The SQL you already know
-   mostly carries over.
-4. **Tighten CORS.** `origin: true` allows *any* website to call your API. In
-   production, restrict it to your real domains.
-5. **Validate & rate-limit.** Add input validation (e.g. `zod`) and a rate limiter
-   (`express-rate-limit`) so the API can't be abused.
-6. **Back up the database.** With SQLite, that's copying `pickup.db` somewhere safe on
-   a schedule (and note: many free hosts have *ephemeral* disks that reset on redeploy —
-   another reason to move to managed Postgres once it matters).
+1. **JWT secret from env.** `JWT_SECRET` now reads `process.env.JWT_SECRET` (with a
+   dev fallback that logs a warning). Set a real one via `server/.env` or your host.
+2. **Token expiry.** Logins expire after `JWT_EXPIRES_IN` (default `30d`).
+3. **Configurable CORS.** Set `ALLOWED_ORIGINS` (comma-separated) in production to
+   restrict who can call the API; blank = allow all (fine for local dev).
+4. **Rate limiting.** `/api/login` and `/api/register` are capped per IP to blunt
+   brute-force attempts (via `express-rate-limit`).
+5. **Security headers.** `helmet` sets safe HTTP headers.
+6. **Input validation.** Registration checks email format and a 6-char minimum password.
+7. **Health check.** `GET /api/health` for uptime monitoring.
+
+All config lives in **`server/.env.example`** — copy it to `server/.env` and fill it in.
+
+**Still worth doing as you grow:**
+
+- **Outgrow SQLite when you scale.** SQLite is a single file — perfect for an MVP and
+  one server. When you need multiple servers or heavy concurrent writes, migrate to
+  **PostgreSQL** (Render/Railway offer managed Postgres). Most of the SQL carries over.
+- **Back up the database.** With SQLite that's copying `pickup.db` somewhere safe on a
+  schedule. ⚠️ Note: many free hosts (including Render's free tier) have *ephemeral*
+  disks that reset on redeploy — so `pickup.db` is wiped each deploy. That's another
+  reason to move to managed Postgres once real users show up.
+- **Refactor the one big file.** As it grows, split `index.js` into routes/, db, and
+  middleware modules. Not urgent, but it keeps things maintainable.
 
 ---
 

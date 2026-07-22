@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border-subtle;
+  }
+  
+  html {
+    background-color: #050815;
+  }
+  
+  body {
+    @apply bg-app text-text-primary font-sans;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #050815;
+    /* Mobile optimizations */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: pan-y;
+    overflow-x: hidden;
+  }
+  
+  #root {
+    background-color: #050815;
+    min-height: 100vh;
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  h1 {
+    @apply text-heading-1 font-bold;
+  }
+
+  h2 {
+    @apply text-heading-2 font-semibold;
+  }
+
+  h3 {
+    @apply text-heading-3 font-medium;
+  }
+
+  p {
+    @apply text-body;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent-primary text-app font-semibold text-body px-6 py-3 rounded-pill transition-all duration-200;
+    @apply hover:opacity-90 hover:shadow-lg hover:shadow-accent-primary/20 active:scale-[0.98];
+    box-shadow: 0 2px 8px rgba(0, 240, 255, 0.2), 0 4px 16px rgba(0, 240, 255, 0.1);
+  }
+
+  .btn-secondary {
+    @apply bg-surface/50 backdrop-blur-sm border border-accent-primary/30 text-accent-primary font-medium text-body px-6 py-3 rounded-pill transition-all duration-200;
+    @apply hover:bg-accent-primary/10 hover:border-accent-primary/50 hover:shadow-lg hover:shadow-accent-primary/10 active:scale-[0.98];
+  }
+
+  .btn-destructive {
+    @apply bg-surface/50 backdrop-blur-sm border border-error/30 text-error font-medium text-body px-6 py-3 rounded-pill transition-all duration-200;
+    @apply hover:bg-error/10 hover:border-error/50 hover:shadow-lg hover:shadow-error/10 active:scale-[0.98];
+  }
+
+  .card {
+    @apply bg-surface/80 backdrop-blur-md rounded-card p-4 border border-border-subtle/50;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 2px 6px rgba(0, 240, 255, 0.1), 0 8px 20px rgba(0, 0, 0, 0.3);
+    border-color: rgba(0, 240, 255, 0.2);
+  }
+
+  .chip {
+    @apply px-3 py-1.5 rounded-pill text-caption font-medium border border-border-subtle/50 bg-surface/30 backdrop-blur-sm text-text-secondary transition-all duration-200;
+    @apply hover:border-accent-primary/30 hover:bg-surface/50 active:scale-[0.96];
+  }
+
+  .chip-active {
+    @apply bg-accent-primary text-app border-accent-primary;
+    box-shadow: 0 2px 8px rgba(0, 240, 255, 0.3);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.2);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.4);
+} 

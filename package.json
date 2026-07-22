@@ -1,0 +1,27 @@
+{
+  "name": "pick-up",
+  "version": "1.0.0",
+  "description": "Connect athletes for live pickup games",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [
+    "sports",
+    "pickup",
+    "athletes",
+    "games"
+  ],
+  "author": "Pick Up Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "netlify-cli": "^22.3.0",
+    "ngrok": "^5.0.0-beta.2",
+    "vercel": "^48.12.0"
+  }
+}

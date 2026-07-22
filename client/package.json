@@ -9,6 +9,11 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.2",
+    "@capacitor/keyboard": "^6.0.3",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
     "socket.io-client": "^4.7.4",
@@ -20,7 +25,10 @@
     "start": "HOST=0.0.0.0 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "cap:sync": "npm run build && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios"
   },
   "eslintConfig": {
     "extends": [
@@ -43,6 +51,7 @@
   "devDependencies": {
     "tailwindcss": "^3.3.6",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32"
+    "postcss": "^8.4.32",
+    "@capacitor/cli": "^6.2.0"
   }
 } 

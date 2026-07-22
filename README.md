@@ -14,9 +14,18 @@ A web application that connects individual athletes for live pickup games across
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript + Tailwind CSS
-- **Backend**: Node.js + Express + Socket.io
+- **iOS app**: Capacitor (wraps the React build in a native shell) — see [`IOS_SETUP.md`](./IOS_SETUP.md)
+- **Backend**: Node.js + Express + Socket.io — see [`BACKEND_GUIDE.md`](./BACKEND_GUIDE.md)
 - **Database**: SQLite (for MVP)
 - **Real-time**: Socket.io for live updates
+
+## 📱 iOS app & 🛠️ backend
+
+- **[`IOS_SETUP.md`](./IOS_SETUP.md)** — build Pick Up as a real, installable iOS app
+  with Capacitor. Most of the scaffolding is already in this repo; the guide covers the
+  Mac/Xcode steps.
+- **[`BACKEND_GUIDE.md`](./BACKEND_GUIDE.md)** — a section-by-section tour of the
+  backend: how it works, how to add features, and how to deploy it.
 
 ## Getting Started
 

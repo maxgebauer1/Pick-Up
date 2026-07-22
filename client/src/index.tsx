@@ -13,5 +13,10 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for PWA functionality
-serviceWorker.register(); 
+// Register the service worker for offline PWA support — web only. The native
+// iOS/Android app bundles its own assets, so a service worker is unnecessary
+// there (and unsupported under the capacitor:// scheme).
+const isNative = (window as any).Capacitor?.isNativePlatform?.();
+if (!isNative) {
+  serviceWorker.register();
+} 

@@ -76,14 +76,18 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '100kb' }));
 
-// Rate limiter for authentication endpoints to slow down brute-force attempts.
-const authLimiter = rateLimit({
+// Rate limiters for authentication endpoints to slow down brute-force attempts.
+// Login and register get separate limiter instances (separate per-IP buckets) so
+// a burst of one can't lock a user out of the other.
+const makeAuthLimiter = (max) => rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,                   // max attempts per window per IP
+  max,                       // max attempts per window per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many attempts, please try again later.' }
 });
+const loginLimiter = makeAuthLimiter(30);
+const registerLimiter = makeAuthLimiter(15);
 
 // Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../client/build')));
@@ -277,7 +281,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Register
-app.post('/api/register', authLimiter, async (req, res) => {
+app.post('/api/register', registerLimiter, async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username || !email || !password) {
@@ -318,7 +322,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
 });
 
 // Login
-app.post('/api/login', authLimiter, (req, res) => {
+app.post('/api/login', loginLimiter, (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {

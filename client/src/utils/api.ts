@@ -22,14 +22,16 @@ export const getApiBaseUrl = () => {
     return 'http://localhost:5001';
   }
 
-  const hostname = window.location.hostname;
+  const { protocol, hostname, origin } = window.location;
 
-  // 3. If accessing via ngrok (ngrok-free.app domain), use the same domain for API
-  if (hostname.includes('ngrok-free.app')) {
-    return `https://${hostname}`;
+  // 3. Served over HTTPS (an ngrok tunnel, or any production deploy where the
+  //    server also serves the built frontend): the API is on the same origin.
+  if (protocol === 'https:') {
+    return origin;
   }
 
-  // 4. If accessing via local network IP, use the same IP for API (backend on 5001)
+  // 4. Local network IP over http (e.g. your phone on the same WiFi hitting the
+  //    dev server): use the same IP for the API (backend runs on port 5001).
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
     return `http://${hostname}:5001`;
   }

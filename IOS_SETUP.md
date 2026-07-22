@@ -164,8 +164,10 @@ solo project.
 - **Ionic Appflow** or **Codemagic / EAS-style CI** can build iOS in the cloud from
   your Capacitor project without you owning a Mac (still needs an Apple Developer
   account to sign).
-- **Meanwhile:** the app is already a PWA — on an iPhone, open the deployed site in
-  Safari → Share → *Add to Home Screen* for a near-native experience today.
+- **Meanwhile:** the app ships a web manifest, so on an iPhone you can open the
+  deployed site in Safari → Share → *Add to Home Screen* for a home-screen icon and
+  full-screen, app-like launch today. (Note: CRA doesn't register a service worker by
+  default, so there's no true offline mode yet — that's a separate add-on.)
 
 ---
 

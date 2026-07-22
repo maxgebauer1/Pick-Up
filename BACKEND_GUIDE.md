@@ -254,10 +254,13 @@ A hardening pass has already been applied to `server/index.js`. **Done ✅:**
 1. **JWT secret from env.** `JWT_SECRET` now reads `process.env.JWT_SECRET` (with a
    dev fallback that logs a warning). Set a real one via `server/.env` or your host.
 2. **Token expiry.** Logins expire after `JWT_EXPIRES_IN` (default `30d`).
-3. **Configurable CORS.** Set `ALLOWED_ORIGINS` (comma-separated) in production to
-   restrict who can call the API; blank = allow all (fine for local dev).
-4. **Rate limiting.** `/api/login` and `/api/register` are capped per IP to blunt
-   brute-force attempts (via `express-rate-limit`).
+3. **Configurable CORS.** Set `ALLOWED_ORIGINS` (comma-separated web domains) in
+   production to restrict who can call the API; blank = allow all (fine for local
+   dev). The native app's WebView origins (`capacitor://localhost`, etc.) are always
+   allowed automatically, so you don't list them.
+4. **Rate limiting + proxy trust.** `/api/login` and `/api/register` are capped per IP
+   (via `express-rate-limit`). `app.set('trust proxy', 1)` makes the per-IP key work
+   correctly behind Render/Railway's reverse proxy.
 5. **Security headers.** `helmet` sets safe HTTP headers.
 6. **Input validation.** Registration checks email format and a 6-char minimum password.
 7. **Health check.** `GET /api/health` for uptime monitoring.

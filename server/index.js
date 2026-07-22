@@ -15,27 +15,52 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
+// Hosting platforms (Render, Railway, Fly, etc.) put a reverse proxy in front of
+// the app, so the client IP arrives in X-Forwarded-For. Trust exactly one proxy
+// hop so req.ip is the real client — this is required for per-IP rate limiting to
+// work. Do NOT use `true` here: express-rate-limit flags it as unsafe because it
+// would let a client spoof X-Forwarded-For to dodge the limiter.
+app.set('trust proxy', 1);
+
 // ---- Configuration (all overridable via environment variables) ----
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'pickup-dev-secret-change-me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 
+// Fail closed in production rather than boot with the public dev secret (anyone
+// could forge login tokens). In development we warn and continue for convenience.
 if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production. Refusing to start with the insecure default.');
+  }
   console.warn(
     '⚠️  JWT_SECRET is not set — using an insecure development default. ' +
     'Set JWT_SECRET in your environment before deploying to production.'
   );
 }
 
-// CORS: in dev (no ALLOWED_ORIGINS) allow all origins so local network / native
-// testing works. In production set ALLOWED_ORIGINS to a comma-separated list.
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : true;
+// CORS. In dev (no ALLOWED_ORIGINS) allow all origins so local-network and native
+// testing just works. In production set ALLOWED_ORIGINS to a comma-separated list
+// of your web domains; the native app's WebView origins are always allowed on top
+// of that (Capacitor iOS = capacitor://localhost, Android = http://localhost).
+const NATIVE_ORIGINS = ['capacitor://localhost', 'ionic://localhost', 'http://localhost'];
+const configuredOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : null;
+
+const corsOrigin = configuredOrigins
+  ? (origin, callback) => {
+      // No Origin header (curl, same-origin, native http) → allow.
+      if (!origin || configuredOrigins.includes(origin) || NATIVE_ORIGINS.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    }
+  : true; // dev: allow all
 
 const io = socketIo(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOrigin,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -46,10 +71,10 @@ const io = socketIo(server, {
 // also serves the React app and is called cross-origin by the web/native client.
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(cors({
-  origin: allowedOrigins,
+  origin: corsOrigin,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // Rate limiter for authentication endpoints to slow down brute-force attempts.
 const authLimiter = rateLimit({
@@ -1159,7 +1184,7 @@ const indexHtmlPath = path.join(__dirname, '../client/build/index.html');
 app.get('*', (req, res) => {
   res.sendFile(indexHtmlPath, (err) => {
     if (err) {
-      res.status(200).json({
+      res.status(404).json({
         message: 'Pick Up API is running. The web client is not bundled with this deployment.',
         health: '/api/health'
       });

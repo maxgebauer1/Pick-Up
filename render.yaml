@@ -9,7 +9,10 @@ services:
     runtime: node
     rootDir: server
     plan: free
-    buildCommand: npm install
+    # Install the server, then build the React frontend so the server can serve
+    # it (index.js serves ../client/build). One service = one HTTPS URL for the
+    # whole app; the frontend talks to /api on the same origin automatically.
+    buildCommand: npm install && cd ../client && npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

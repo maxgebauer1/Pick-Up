@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import { useStore } from '../data/store';
 import { GameCard } from '../components/GameCard';
@@ -11,10 +11,19 @@ export const Browse: React.FC = () => {
   const [sport, setSport] = useState<SportFilter>('all');
   const [skill, setSkill] = useState<SkillLevel | 'all'>('all');
 
-  const visible = games
-    .filter((g) => (sport === 'all' ? true : g.sport === sport))
-    .filter((g) => (skill === 'all' ? true : g.skill === skill || g.skill === 'all'))
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  // Memoized so the filter/sort pipeline only reruns when games or a filter
+  // changes (not on every re-render), and each start time is parsed once
+  // instead of twice per sort comparison.
+  const visible = useMemo(
+    () =>
+      games
+        .filter((g) => (sport === 'all' ? true : g.sport === sport))
+        .filter((g) => (skill === 'all' ? true : g.skill === skill || g.skill === 'all'))
+        .map((g) => ({ g, t: Date.parse(g.startsAt) }))
+        .sort((a, b) => a.t - b.t)
+        .map((x) => x.g),
+    [games, sport, skill]
+  );
 
   return (
     <div className="mx-auto max-w-md px-4 pt-5 pb-28">

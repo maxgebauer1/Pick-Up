@@ -8,7 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { skillMeta, ageLabel, Participant, AttendanceStatus } from '../types';
 import { startLabel, startsInLabel, timeAgo } from '../lib/format';
 
-const StatusPill: React.FC<{ status: AttendanceStatus }> = ({ status }) => {
+const StatusPill = React.memo(function StatusPill({ status }: { status: AttendanceStatus }) {
   if (status === 'confirmed' || status === 'checked-in') {
     return (
       <span className="inline-flex items-center gap-1 text-[11.5px] font-extrabold text-green-deep bg-green-soft px-2.5 py-1 rounded-pill">
@@ -21,7 +21,7 @@ const StatusPill: React.FC<{ status: AttendanceStatus }> = ({ status }) => {
     return <span className="text-[11.5px] font-extrabold text-muted bg-bg px-2.5 py-1 rounded-pill">Waiting</span>;
   }
   return <span className="text-[11.5px] font-extrabold text-amber bg-amber-soft px-2.5 py-1 rounded-pill">Pending</span>;
-};
+});
 
 export const GameDetail: React.FC = () => {
   const { gameId } = useParams();
@@ -240,12 +240,18 @@ export const GameDetail: React.FC = () => {
   );
 };
 
-const PlayerRow: React.FC<{ p: Participant; me?: string; showStatus?: boolean; nextUp?: boolean }> = ({
+const PlayerRow = React.memo(function PlayerRow({
   p,
   me,
   showStatus,
   nextUp,
-}) => (
+}: {
+  p: Participant;
+  me?: string;
+  showStatus?: boolean;
+  nextUp?: boolean;
+}) {
+  return (
   <div className="flex items-center gap-3 py-2">
     <Avatar player={p.player} size={36} />
     <span className="flex-1 text-[14px] font-bold">
@@ -258,4 +264,5 @@ const PlayerRow: React.FC<{ p: Participant; me?: string; showStatus?: boolean; n
       showStatus && <StatusPill status={p.status} />
     )}
   </div>
-);
+  );
+});

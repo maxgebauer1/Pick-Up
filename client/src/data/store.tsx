@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Game, Participant } from '../types';
 import { api, CreateGamePayload } from '../lib/api';
 import { getSocket } from '../lib/socket';
@@ -56,18 +56,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refresh();
   }, [refresh]);
 
-  const createGame = useCallback(
-    async (payload: CreateGamePayload) => {
-      const { game } = await api.createGame(payload);
-      await refresh();
-      return game.id;
-    },
-    [refresh]
+  const createGame = useCallback(async (payload: CreateGamePayload) => {
+    // api.createGame already returns the fully-serialized game, so add it to
+    // local state directly instead of refetching the whole list. Screens sort
+    // by start time on render, so insertion order here doesn't matter.
+    const { game } = await api.createGame(payload);
+    setGames((prev) => [game, ...prev]);
+    return game.id;
+  }, []);
+
+  // Memoized so the context value is a stable reference; consumers only
+  // re-render when the underlying state actually changes, not on every
+  // provider render.
+  const value = useMemo(
+    () => ({ games, loading, error, refresh, createGame }),
+    [games, loading, error, refresh, createGame]
   );
 
-  return (
-    <StoreCtx.Provider value={{ games, loading, error, refresh, createGame }}>{children}</StoreCtx.Provider>
-  );
+  return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 };
 
 export function useStore() {

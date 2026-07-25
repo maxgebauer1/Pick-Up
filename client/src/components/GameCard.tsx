@@ -4,16 +4,20 @@ import { Game, skillMeta, ageLabel } from '../types';
 import { SportIcon } from '../icons/Sports';
 import { Avatar } from './Avatar';
 import { startLabel } from '../lib/format';
-import { spotsLeft, isFull, activeCount } from '../data/store';
 
-export const GameCard: React.FC<{ game: Game }> = ({ game }) => {
+// Memoized so a filter tap in Browse (which changes no game data) doesn't
+// re-render every card and its Avatars/SportIcon; the store preserves game
+// object references for unchanged games, so unaffected cards skip re-render.
+export const GameCard = React.memo(function GameCard({ game }: { game: Game }) {
   const nav = useNavigate();
   const skill = skillMeta(game.skill);
-  const full = isFull(game);
-  const spots = spotsLeft(game);
+  // Derive every count from a single participants scan instead of the composed
+  // store helpers (isFull -> spotsLeft -> activeCount), which each re-scan.
   const active = game.participants.filter((p) => p.status !== 'waitlisted');
+  const spots = Math.max(0, game.maxPlayers - active.length);
+  const full = spots === 0;
   const shown = active.slice(0, 3);
-  const extra = activeCount(game) - shown.length;
+  const extra = active.length - shown.length;
 
   return (
     <button
@@ -68,4 +72,4 @@ export const GameCard: React.FC<{ game: Game }> = ({ game }) => {
       </div>
     </button>
   );
-};
+});

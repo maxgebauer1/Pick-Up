@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Bell, ChevronRight, LogOut } from 'lucide-react';
 import { useStore, myParticipant } from '../data/store';
 import { useAuth } from '../context/AuthContext';
@@ -14,13 +14,23 @@ export const Profile: React.FC = () => {
     pushSupported() ? 'off' : 'unsupported'
   );
 
+  // Memoized before the early return (rules of hooks) so it only recomputes
+  // when games or the user changes; each start time is parsed once.
+  const myGames = useMemo(
+    () =>
+      user
+        ? games
+            .filter((g) => myParticipant(g, user.id))
+            .map((g) => ({ g, t: Date.parse(g.startsAt) }))
+            .sort((a, b) => a.t - b.t)
+            .map((x) => x.g)
+        : [],
+    [games, user]
+  );
+
   if (!user) return null;
 
   const me: Player = { id: user.id, name: user.name, initials: initials(user.name), color: '#186640' };
-
-  const myGames = games
-    .filter((g) => myParticipant(g, user.id))
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
   const togglePush = async () => {
     if (pushState === 'on' || pushState === 'busy') return;

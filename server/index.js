@@ -92,6 +92,14 @@ async function initDb() {
     sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (game_id, user_id, kind)
   )`);
+
+  // Secondary indexes for hot query paths. Without these, chat lookup (per
+  // game, ordered), the games-list ORDER BY, and per-user push lookups all do
+  // full table scans. participants/reminders_sent lookups are already covered
+  // by their composite PRIMARY KEYs, and users.email by its UNIQUE constraint.
+  await run(`CREATE INDEX IF NOT EXISTS idx_messages_game ON messages(game_id, created_at)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_games_starts ON games(starts_at)`);
+  await run(`CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +186,50 @@ async function serializeGame(gameId) {
   };
 }
 
+// List serializer for GET /api/games: two queries total regardless of how many
+// games match (vs serializeGame's 3-queries-per-game fan-out), filters in SQL,
+// and never fetches chat messages — the list/feed never renders them.
+async function serializeGameList({ sport, skill } = {}) {
+  const where = [];
+  const params = [];
+  if (sport && sport !== 'all') { where.push('sport = ?'); params.push(sport); }
+  if (skill && skill !== 'all') { where.push("(skill = ? OR skill = 'all')"); params.push(skill); }
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+  const gameRows = await all(`SELECT * FROM games ${clause} ORDER BY starts_at ASC`, params);
+  if (gameRows.length === 0) return [];
+
+  const ids = gameRows.map((g) => g.id);
+  const placeholders = ids.map(() => '?').join(',');
+  const partRows = await all(
+    `SELECT p.game_id, p.status, p.joined_at, u.id, u.name
+     FROM participants p JOIN users u ON u.id = p.user_id
+     WHERE p.game_id IN (${placeholders}) ORDER BY p.joined_at ASC`,
+    ids
+  );
+  const partsByGame = {};
+  for (const p of partRows) (partsByGame[p.game_id] = partsByGame[p.game_id] || []).push(p);
+
+  return gameRows.map((g) => ({
+    id: g.id,
+    sport: g.sport,
+    title: g.title,
+    place: g.place,
+    distanceMi: g.distance_mi,
+    startsAt: g.starts_at,
+    maxPlayers: g.max_players,
+    skill: g.skill,
+    minAge: g.min_age,
+    creatorId: g.creator_id,
+    participants: (partsByGame[g.id] || []).map((p) => ({
+      player: playerOf({ id: p.id, name: p.name }),
+      status: p.status,
+      isHost: p.id === g.creator_id,
+    })),
+    messages: [], // list view never renders chat; detail endpoint fetches it
+  }));
+}
+
 const activeCount = (game) => game.participants.filter((p) => p.status !== 'waitlisted').length;
 
 async function emitGameUpdate(gameId) {
@@ -248,10 +300,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/games', async (req, res) => {
   const { sport, skill } = req.query;
-  const rows = await all('SELECT id FROM games ORDER BY starts_at ASC');
-  let games = (await Promise.all(rows.map((r) => serializeGame(r.id)))).filter(Boolean);
-  if (sport && sport !== 'all') games = games.filter((g) => g.sport === sport);
-  if (skill && skill !== 'all') games = games.filter((g) => g.skill === skill || g.skill === 'all');
+  const games = await serializeGameList({ sport, skill });
   res.json({ games });
 });
 
@@ -290,12 +339,16 @@ app.delete('/api/games/:id', authMiddleware, async (req, res) => {
 
 app.post('/api/games/:id/join', authMiddleware, async (req, res) => {
   const gameId = req.params.id;
-  const game = await serializeGame(gameId);
-  if (!game) return res.status(404).json({ error: 'Game not found' });
-  if (game.participants.some((p) => p.player.id === req.user.id)) {
+  // Only need capacity + membership here, so avoid serializeGame's full fetch
+  // (participants + up to 200 chat messages) just to count heads.
+  const g = await get('SELECT max_players FROM games WHERE id = ?', [gameId]);
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  const parts = await all('SELECT user_id, status FROM participants WHERE game_id = ?', [gameId]);
+  if (parts.some((p) => p.user_id === req.user.id)) {
     return res.status(400).json({ error: 'Already joined' });
   }
-  const status = activeCount(game) < game.maxPlayers ? 'joined' : 'waitlisted';
+  const active = parts.filter((p) => p.status !== 'waitlisted').length;
+  const status = active < g.max_players ? 'joined' : 'waitlisted';
   await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [gameId, req.user.id, status]);
   res.json({ game: await emitGameUpdate(gameId) });
 });
@@ -309,11 +362,12 @@ app.post('/api/games/:id/leave', authMiddleware, async (req, res) => {
     const next = game.participants.find((p) => p.status === 'waitlisted');
     if (next) {
       await run('UPDATE participants SET status = ? WHERE game_id = ? AND user_id = ?', ['joined', gameId, next.player.id]);
-      await pushToUser(next.player.id, {
+      // Fire-and-forget: don't block the HTTP response on the external push service.
+      pushToUser(next.player.id, {
         title: "You're in! 🎉",
         body: `A spot opened in "${game.title}". You're off the waitlist.`,
         url: `/game/${gameId}`,
-      });
+      }).catch((err) => console.error('push failed:', err.message));
     }
   }
   res.json({ game: await emitGameUpdate(gameId) });
@@ -359,11 +413,12 @@ app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
      ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id`,
     [uuidv4(), req.user.id, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth]
   );
-  await pushToUser(req.user.id, {
+  // Fire-and-forget: the confirmation push shouldn't hold up the response.
+  pushToUser(req.user.id, {
     title: 'Reminders on ✅',
     body: "We'll nudge you to confirm before each game.",
     url: '/me',
-  });
+  }).catch((err) => console.error('push failed:', err.message));
   res.json({ ok: true });
 });
 
@@ -372,21 +427,27 @@ app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
 // ---------------------------------------------------------------------------
 async function runReminderSweep() {
   try {
-    const games = await all('SELECT * FROM games');
-    const now = Date.now();
+    // Only games starting within the next 3h need a confirm reminder. Windowing
+    // in SQL (backed by idx_games_starts) keeps the loop near-empty instead of
+    // scanning every game, past and future, each minute. starts_at is stored as
+    // an ISO-8601 UTC string, so lexicographic comparison is correct here.
+    const nowIso = new Date().toISOString();
+    const maxIso = new Date(Date.now() + 3 * 3600_000).toISOString();
+    const games = await all(
+      'SELECT id, title, place FROM games WHERE starts_at > ? AND starts_at <= ?',
+      [nowIso, maxIso]
+    );
     for (const g of games) {
-      const hoursUntil = (new Date(g.starts_at).getTime() - now) / 3600_000;
-      if (hoursUntil <= 0 || hoursUntil > 3) continue; // confirm window: within 3h of start
+      // Pending 'joined' players not yet reminded — one LEFT JOIN instead of a
+      // per-participant existence query.
       const pending = await all(
-        `SELECT user_id FROM participants WHERE game_id = ? AND status = 'joined'`,
+        `SELECT p.user_id FROM participants p
+         LEFT JOIN reminders_sent r
+           ON r.game_id = p.game_id AND r.user_id = p.user_id AND r.kind = 'confirm'
+         WHERE p.game_id = ? AND p.status = 'joined' AND r.game_id IS NULL`,
         [g.id]
       );
       for (const p of pending) {
-        const already = await get(
-          'SELECT 1 FROM reminders_sent WHERE game_id = ? AND user_id = ? AND kind = ?',
-          [g.id, p.user_id, 'confirm']
-        );
-        if (already) continue;
         await pushToUser(p.user_id, {
           title: `Still on for ${g.title}? 🏀`,
           body: `${g.place} — confirm so we hold your spot.`,

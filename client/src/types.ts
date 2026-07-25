@@ -35,8 +35,16 @@ export interface Game {
   maxPlayers: number;
   skill: SkillLevel;
   minAge: number; // 0 = all ages
+  creatorId?: string;
   participants: Participant[];
   messages: ChatMessage[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  city?: string;
 }
 
 export const SPORTS: { id: Sport; label: string }[] = [

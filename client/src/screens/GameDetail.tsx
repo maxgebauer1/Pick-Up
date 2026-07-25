@@ -1,15 +1,8 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin, Clock, Check, Send } from 'lucide-react';
-import {
-  useStore,
-  gamePhase,
-  activeCount,
-  confirmedCount,
-  spotsLeft,
-  isFull,
-  myParticipant,
-} from '../data/store';
+import { useGameDetail, gamePhase, activeCount, confirmedCount, spotsLeft, isFull, myParticipant } from '../data/store';
+import { useAuth } from '../context/AuthContext';
 import { SportIcon } from '../icons/Sports';
 import { Avatar } from '../components/Avatar';
 import { skillMeta, ageLabel, Participant, AttendanceStatus } from '../types';
@@ -25,32 +18,27 @@ const StatusPill: React.FC<{ status: AttendanceStatus }> = ({ status }) => {
     );
   }
   if (status === 'waitlisted') {
-    return (
-      <span className="text-[11.5px] font-extrabold text-muted bg-bg px-2.5 py-1 rounded-pill">
-        Waiting
-      </span>
-    );
+    return <span className="text-[11.5px] font-extrabold text-muted bg-bg px-2.5 py-1 rounded-pill">Waiting</span>;
   }
-  return (
-    <span className="text-[11.5px] font-extrabold text-amber bg-amber-soft px-2.5 py-1 rounded-pill">
-      Pending
-    </span>
-  );
+  return <span className="text-[11.5px] font-extrabold text-amber bg-amber-soft px-2.5 py-1 rounded-pill">Pending</span>;
 };
 
 export const GameDetail: React.FC = () => {
   const { gameId } = useParams();
   const nav = useNavigate();
-  const { getGame, join, leave, setMyStatus, sendMessage } = useStore();
+  const { user } = useAuth();
+  const { game, loading, error, join, leave, confirm, checkIn, sendMessage } = useGameDetail(gameId);
   const [draft, setDraft] = useState('');
 
-  const game = gameId ? getGame(gameId) : undefined;
-  if (!game) {
+  if (loading) {
+    return <div className="mx-auto max-w-md px-4 pt-24 text-center text-muted">Loading…</div>;
+  }
+  if (error || !game) {
     return (
       <div className="mx-auto max-w-md px-4 pt-20 text-center text-muted">
-        Game not found.
+        {error || 'Game not found.'}
         <div className="mt-4">
-          <button className="btn-secondary" onClick={() => nav('/')}>Back to browse</button>
+          <button className="btn-secondary w-auto px-5" onClick={() => nav('/')}>Back to browse</button>
         </div>
       </div>
     );
@@ -58,7 +46,7 @@ export const GameDetail: React.FC = () => {
 
   const skill = skillMeta(game.skill);
   const phase = gamePhase(game);
-  const me = myParticipant(game);
+  const me = myParticipant(game, user?.id);
   const full = isFull(game);
   const spots = spotsLeft(game);
 
@@ -75,13 +63,12 @@ export const GameDetail: React.FC = () => {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(game.id, draft);
+    sendMessage(draft);
     setDraft('');
   };
 
   return (
     <div className="mx-auto max-w-md min-h-screen flex flex-col">
-      {/* top bar */}
       <div className="sticky top-0 z-20 bg-bg/90 backdrop-blur flex items-center justify-between px-3 py-3">
         <button className="w-9 h-9 rounded-pill bg-surface border border-line flex items-center justify-center" onClick={() => nav(-1)}>
           <ChevronLeft size={18} />
@@ -101,10 +88,10 @@ export const GameDetail: React.FC = () => {
         <h1 className="text-[23px] font-extrabold mt-3">{game.title}</h1>
         <p className="flex items-center gap-1.5 text-[14px] text-muted mt-1">
           <MapPin size={15} className="text-faint" />
-          {game.place} · {game.distanceMi.toFixed(1)} mi away
+          {game.place}
+          {game.distanceMi > 0 && ` · ${game.distanceMi.toFixed(1)} mi away`}
         </p>
 
-        {/* meta chips */}
         <div className="flex flex-wrap gap-2 mt-4">
           <span className="inline-flex items-center gap-2 text-[12.5px] font-bold border border-line rounded-field px-3 py-2 bg-surface">
             <span className="w-2 h-2 rounded-pill" style={{ background: skill.color }} />
@@ -122,7 +109,6 @@ export const GameDetail: React.FC = () => {
           </span>
         </div>
 
-        {/* confirm banner */}
         {showConfirmBanner && (
           <div className="bg-amber-soft rounded-card p-4 mt-5">
             <div className="flex items-center gap-2 text-[15px] font-extrabold text-amber">
@@ -133,29 +119,20 @@ export const GameDetail: React.FC = () => {
               Confirm you're coming so we hold your spot. Unconfirmed spots open to the waitlist soon.
             </p>
             <div className="flex gap-2.5">
-              <button className="btn-primary flex-1" onClick={() => setMyStatus(game.id, 'confirmed')}>
-                Yes, I'm coming
-              </button>
-              <button className="btn-secondary w-auto px-4" onClick={() => leave(game.id)}>
-                Can't make it
-              </button>
+              <button className="btn-primary flex-1" onClick={confirm}>Yes, I'm coming</button>
+              <button className="btn-secondary w-auto px-4" onClick={leave}>Can't make it</button>
             </div>
           </div>
         )}
 
-        {/* check-in banner */}
         {showCheckIn && (
           <div className="bg-green-soft rounded-card p-4 mt-5">
             <div className="flex items-center gap-2 text-[15px] font-extrabold text-green-deep">
               <MapPin size={17} strokeWidth={2.4} />
               Game time — you here?
             </div>
-            <p className="text-[13px] text-muted mt-1 mb-3">
-              Check in so the host knows you made it.
-            </p>
-            <button className="btn-primary" onClick={() => setMyStatus(game.id, 'checked-in')}>
-              I'm here
-            </button>
+            <p className="text-[13px] text-muted mt-1 mb-3">Check in so the host knows you made it.</p>
+            <button className="btn-primary" onClick={checkIn}>I'm here</button>
           </div>
         )}
 
@@ -165,7 +142,6 @@ export const GameDetail: React.FC = () => {
           </div>
         )}
 
-        {/* players */}
         <section className="mt-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[13px] font-extrabold">Players</h2>
@@ -173,7 +149,7 @@ export const GameDetail: React.FC = () => {
           </div>
           <div className="flex flex-col">
             {active.map((p) => (
-              <PlayerRow key={p.player.id} p={p} showStatus={phase !== 'upcoming'} />
+              <PlayerRow key={p.player.id} p={p} me={user?.id} showStatus={phase !== 'upcoming'} />
             ))}
           </div>
 
@@ -184,23 +160,20 @@ export const GameDetail: React.FC = () => {
                 <span className="text-[13px] text-faint font-semibold">{waitlist.length} waiting</span>
               </div>
               {waitlist.map((p, i) => (
-                <PlayerRow key={p.player.id} p={p} showStatus nextUp={i === 0} />
+                <PlayerRow key={p.player.id} p={p} me={user?.id} showStatus nextUp={i === 0} />
               ))}
             </div>
           )}
         </section>
 
-        {/* chat */}
         <section className="mt-6">
           <h2 className="text-[13px] font-extrabold mb-3">Lobby chat</h2>
           <div className="bg-bg rounded-card p-3">
             {game.messages.length === 0 && (
-              <p className="text-[13px] text-faint text-center py-4">
-                No messages yet — say hi 👋
-              </p>
+              <p className="text-[13px] text-faint text-center py-4">No messages yet — say hi 👋</p>
             )}
             {game.messages.map((m) => {
-              const mine = m.player.id === 'me';
+              const mine = m.player.id === user?.id;
               return (
                 <div key={m.id} className={`flex gap-2 mb-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
                   <Avatar player={m.player} size={26} />
@@ -241,18 +214,15 @@ export const GameDetail: React.FC = () => {
         </section>
       </div>
 
-      {/* sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line">
         <div className="mx-auto max-w-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {!me && (
-            <button className="btn-primary" onClick={() => join(game.id)}>
-              {full ? 'Join waitlist' : 'Join game'}
-            </button>
+            <button className="btn-primary" onClick={join}>{full ? 'Join waitlist' : 'Join game'}</button>
           )}
           {me?.status === 'waitlisted' && (
             <div className="flex items-center gap-3">
               <span className="flex-1 text-[14px] font-bold text-muted">You're on the waitlist</span>
-              <button className="btn-secondary w-auto px-5" onClick={() => leave(game.id)}>Leave</button>
+              <button className="btn-secondary w-auto px-5" onClick={leave}>Leave</button>
             </div>
           )}
           {me && me.status !== 'waitlisted' && (
@@ -261,7 +231,7 @@ export const GameDetail: React.FC = () => {
                 <Check size={16} strokeWidth={3} />
                 {me.status === 'confirmed' ? "You're confirmed" : me.status === 'checked-in' ? "You're here" : "You're in"}
               </span>
-              <button className="btn-secondary w-auto px-5" onClick={() => leave(game.id)}>Leave</button>
+              <button className="btn-secondary w-auto px-5" onClick={leave}>Leave</button>
             </div>
           )}
         </div>
@@ -270,15 +240,16 @@ export const GameDetail: React.FC = () => {
   );
 };
 
-const PlayerRow: React.FC<{ p: Participant; showStatus?: boolean; nextUp?: boolean }> = ({
+const PlayerRow: React.FC<{ p: Participant; me?: string; showStatus?: boolean; nextUp?: boolean }> = ({
   p,
+  me,
   showStatus,
   nextUp,
 }) => (
   <div className="flex items-center gap-3 py-2">
     <Avatar player={p.player} size={36} />
     <span className="flex-1 text-[14px] font-bold">
-      {p.player.id === 'me' ? 'You' : p.player.name}
+      {p.player.id === me ? 'You' : p.player.name}
       {p.isHost && <span className="text-faint font-semibold text-[12px]"> · host</span>}
     </span>
     {nextUp ? (

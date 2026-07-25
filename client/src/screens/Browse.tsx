@@ -7,7 +7,7 @@ import { Sport, SkillLevel, SPORTS } from '../types';
 type SportFilter = Sport | 'all';
 
 export const Browse: React.FC = () => {
-  const { games } = useStore();
+  const { games, loading, error } = useStore();
   const [sport, setSport] = useState<SportFilter>('all');
   const [skill, setSkill] = useState<SkillLevel | 'all'>('all');
 
@@ -57,10 +57,12 @@ export const Browse: React.FC = () => {
 
       {/* Feed */}
       <div className="flex flex-col gap-3 mt-4">
-        {visible.map((g) => (
-          <GameCard key={g.id} game={g} />
-        ))}
-        {visible.length === 0 && (
+        {loading && <div className="text-center text-muted text-sm py-16">Finding games near you…</div>}
+        {error && !loading && <div className="text-center text-[#a23b34] text-sm py-16">{error}</div>}
+        {!loading &&
+          !error &&
+          visible.map((g) => <GameCard key={g.id} game={g} />)}
+        {!loading && !error && visible.length === 0 && (
           <div className="text-center text-muted text-sm py-16">
             No games match those filters yet.
             <br />

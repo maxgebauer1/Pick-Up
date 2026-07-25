@@ -7,1109 +7,473 @@ const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
+const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: true, // Allow all origins for local network access
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
+const io = socketIo(server, { cors: { origin: true, methods: ['GET', 'POST'], credentials: true } });
 
 const PORT = process.env.PORT || 5001;
-const JWT_SECRET = 'pickup-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'pickup-secret-key-change-in-production';
 
-// Middleware
-app.use(cors({
-  origin: true, // Allow all origins for local network access
-  credentials: true
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
-// Serve static files from the React build
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Database setup
-const db = new sqlite3.Database('./pickup.db');
+// ---------------------------------------------------------------------------
+// Database
+// ---------------------------------------------------------------------------
+const db = new sqlite3.Database(path.join(__dirname, 'pickup.db'));
 
-// Initialize database tables
-db.serialize(() => {
-  // Users table
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+const run = (sql, params = []) =>
+  new Promise((resolve, reject) =>
+    db.run(sql, params, function (err) { err ? reject(err) : resolve(this); })
+  );
+const get = (sql, params = []) =>
+  new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
+const all = (sql, params = []) =>
+  new Promise((resolve, reject) => db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows))));
+
+async function initDb() {
+  await run(`CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    age INTEGER,
-    location TEXT,
-    current_location TEXT,
-    current_location_lat REAL,
-    current_location_lng REAL,
-    home_location TEXT,
-    home_location_lat REAL,
-    home_location_lng REAL,
-    favorite_sport TEXT,
-    profile_pic TEXT,
+    city TEXT DEFAULT 'Venice, CA',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Games table
-  db.run(`CREATE TABLE IF NOT EXISTS games (
+  await run(`CREATE TABLE IF NOT EXISTS games (
     id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
     sport TEXT NOT NULL,
-    location TEXT NOT NULL,
-    location_lat REAL,
-    location_lng REAL,
-    place_id TEXT,
+    title TEXT NOT NULL,
+    place TEXT NOT NULL,
+    distance_mi REAL DEFAULT 0,
+    starts_at TEXT NOT NULL,
     max_players INTEGER NOT NULL,
-    current_players INTEGER DEFAULT 0,
-    creator_id TEXT NOT NULL,
-    status TEXT DEFAULT 'open',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    game_time TEXT,
-    level TEXT,
-    is_casual INTEGER DEFAULT 0,
-    is_private INTEGER DEFAULT 0,
+    skill TEXT NOT NULL,
     min_age INTEGER DEFAULT 0,
-    is_money_game INTEGER DEFAULT 0,
-    entry_fee REAL DEFAULT 0,
-    total_pot REAL DEFAULT 0,
+    creator_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (creator_id) REFERENCES users (id)
   )`);
 
-  // Game participants table
-  db.run(`CREATE TABLE IF NOT EXISTS game_participants (
+  await run(`CREATE TABLE IF NOT EXISTS participants (
     game_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'joined',
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (game_id, user_id),
-    FOREIGN KEY (game_id) REFERENCES games (id),
-    FOREIGN KEY (user_id) REFERENCES users (id)
+    PRIMARY KEY (game_id, user_id)
   )`);
 
-  // User sports preferences table
-  db.run(`CREATE TABLE IF NOT EXISTS user_sports (
-    user_id TEXT NOT NULL,
-    sport TEXT NOT NULL,
-    skill_level INTEGER DEFAULT 1,
-    is_primary BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, sport),
-    FOREIGN KEY (user_id) REFERENCES users (id)
-  )`);
-
-  // Game results table
-  db.run(`CREATE TABLE IF NOT EXISTS game_results (
+  await run(`CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     game_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    result TEXT NOT NULL,
-    score INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games (id),
-    FOREIGN KEY (user_id) REFERENCES users (id)
+    text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Friends table
-  db.run(`CREATE TABLE IF NOT EXISTS friends (
+  await run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
-    friend_id TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users (id),
-    FOREIGN KEY (friend_id) REFERENCES users (id),
-    UNIQUE(user_id, friend_id)
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Chat messages table
-  db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
-    id TEXT PRIMARY KEY,
+  await run(`CREATE TABLE IF NOT EXISTS reminders_sent (
     game_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (game_id) REFERENCES games (id),
-    FOREIGN KEY (user_id) REFERENCES users (id)
+    kind TEXT NOT NULL,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (game_id, user_id, kind)
   )`);
+}
 
-  // Player reports table
-  db.run(`CREATE TABLE IF NOT EXISTS player_reports (
-    id TEXT PRIMARY KEY,
-    reporter_id TEXT NOT NULL,
-    reported_user_id TEXT NOT NULL,
-    game_id TEXT NOT NULL,
-    reason TEXT NOT NULL,
-    description TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (reporter_id) REFERENCES users (id),
-    FOREIGN KEY (reported_user_id) REFERENCES users (id),
-    FOREIGN KEY (game_id) REFERENCES games (id)
-  )`);
-
-  // Add new columns to existing users table if they don't exist
-  db.run(`ALTER TABLE users ADD COLUMN current_location TEXT`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding current_location column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN current_location_lat REAL`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding current_location_lat column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN current_location_lng REAL`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding current_location_lng column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN home_location TEXT`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding home_location column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN home_location_lat REAL`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding home_location_lat column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN home_location_lng REAL`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding home_location_lng column:', err);
-    }
-  });
-  
-  db.run(`ALTER TABLE users ADD COLUMN favorite_sport TEXT`, (err) => {
-    if (err && !err.message.includes('duplicate column name')) {
-      console.error('Error adding favorite_sport column:', err);
-    }
-  });
-});
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.sendStatus(401);
+// ---------------------------------------------------------------------------
+// Web Push setup (VAPID keys persisted so they survive restarts)
+// ---------------------------------------------------------------------------
+let vapid = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+const vapidFile = path.join(__dirname, '.vapid.json');
+if (!vapid.publicKey || !vapid.privateKey) {
+  if (fs.existsSync(vapidFile)) {
+    vapid = JSON.parse(fs.readFileSync(vapidFile, 'utf8'));
+  } else {
+    vapid = webpush.generateVAPIDKeys();
+    fs.writeFileSync(vapidFile, JSON.stringify(vapid, null, 2));
   }
+}
+webpush.setVapidDetails('mailto:hello@pickup.app', vapid.publicKey, vapid.privateKey);
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const AVATAR_COLORS = ['#e2564d', '#1f7a4d', '#1836d6', '#8a7a2e', '#40506e', '#c9673f', '#7a5aa0', '#2f9e6a', '#d9822b'];
+
+function colorFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function initialsFor(name) {
+  const parts = name.trim().split(/\s+/);
+  const chars = parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
+  return chars.toUpperCase();
+}
+function playerOf(user) {
+  return { id: user.id, name: user.name, initials: initialsFor(user.name), color: colorFor(user.id) };
+}
+
+const authMiddleware = (req, res, next) => {
+  const token = (req.headers['authorization'] || '').split(' ')[1];
+  if (!token) return res.sendStatus(401);
+  jwt.verify(token, JWT_SECRET, (err, payload) => {
     if (err) return res.sendStatus(403);
-    req.user = user;
+    req.user = payload;
     next();
   });
 };
 
-// Routes
+async function serializeGame(gameId) {
+  const g = await get('SELECT * FROM games WHERE id = ?', [gameId]);
+  if (!g) return null;
+  const parts = await all(
+    `SELECT p.status, p.joined_at, u.id, u.name
+     FROM participants p JOIN users u ON u.id = p.user_id
+     WHERE p.game_id = ? ORDER BY p.joined_at ASC`,
+    [gameId]
+  );
+  const msgs = await all(
+    `SELECT m.id, m.text, m.created_at, u.id as uid, u.name
+     FROM messages m JOIN users u ON u.id = m.user_id
+     WHERE m.game_id = ? ORDER BY m.created_at ASC LIMIT 200`,
+    [gameId]
+  );
+  return {
+    id: g.id,
+    sport: g.sport,
+    title: g.title,
+    place: g.place,
+    distanceMi: g.distance_mi,
+    startsAt: g.starts_at,
+    maxPlayers: g.max_players,
+    skill: g.skill,
+    minAge: g.min_age,
+    creatorId: g.creator_id,
+    participants: parts.map((p) => ({
+      player: playerOf({ id: p.id, name: p.name }),
+      status: p.status,
+      isHost: p.id === g.creator_id,
+    })),
+    messages: msgs.map((m) => ({
+      id: m.id,
+      player: playerOf({ id: m.uid, name: m.name }),
+      text: m.text,
+      at: m.created_at,
+    })),
+  };
+}
 
-// Register
-app.post('/api/register', async (req, res) => {
-  const { username, email, password } = req.body;
-  
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
+const activeCount = (game) => game.participants.filter((p) => p.status !== 'waitlisted').length;
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = uuidv4();
-    
-    db.run(
-      'INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)',
-      [userId, username, email, hashedPassword],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Username or email already exists' });
-          }
-          return res.status(500).json({ error: 'Database error' });
+async function emitGameUpdate(gameId) {
+  const game = await serializeGame(gameId);
+  if (game) io.to(gameId).emit('game-updated', { game });
+  return game;
+}
+
+// Send a push to every subscription belonging to a user. Prunes dead endpoints.
+async function pushToUser(userId, payload) {
+  const subs = await all('SELECT * FROM push_subscriptions WHERE user_id = ?', [userId]);
+  await Promise.all(
+    subs.map(async (s) => {
+      const subscription = { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } };
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await run('DELETE FROM push_subscriptions WHERE id = ?', [s.id]);
         }
-        
-        const token = jwt.sign({ id: userId, username }, JWT_SECRET);
-        res.json({ token, user: { id: userId, username, email } });
       }
-    );
-  } catch (error) {
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Auth routes
+// ---------------------------------------------------------------------------
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    const id = uuidv4();
+    await run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email.toLowerCase(), hashed]);
+    const user = { id, name, email: email.toLowerCase(), city: 'Venice, CA' };
+    const token = jwt.sign({ id, name }, JWT_SECRET);
+    res.json({ token, user });
+  } catch (err) {
+    if (String(err.message).includes('UNIQUE')) return res.status(400).json({ error: 'That email is already registered' });
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Login
-app.post('/api/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
-  
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
-
-  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
-
-    try {
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
-
-      const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET);
-      res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
-    } catch (error) {
-      res.status(500).json({ error: 'Server error' });
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+  try {
+    const user = await get('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ error: 'Invalid email or password' });
     }
-  });
-});
-
-// Get a specific game by ID (for private games)
-app.get('/api/games/:gameId', (req, res) => {
-  const { gameId } = req.params;
-  
-  db.get(`
-    SELECT g.*, u.username as creator_name, 
-           COUNT(gp.user_id) as current_players,
-           g.level, g.is_casual, g.is_private, g.min_age, g.is_money_game, g.entry_fee, g.total_pot
-    FROM games g
-    LEFT JOIN users u ON g.creator_id = u.id
-    LEFT JOIN game_participants gp ON g.id = gp.game_id
-    WHERE g.id = ?
-    GROUP BY g.id
-  `, [gameId], (err, game) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    res.json(game);
-  });
-});
-
-// Get all games with optional radius search
-app.get('/api/games', (req, res) => {
-  const { lat, lng, radius } = req.query;
-  
-  let query = `
-    SELECT g.*, u.username as creator_name, 
-           COUNT(gp.user_id) as current_players,
-           g.level, g.is_casual, g.is_private, g.min_age, g.is_money_game, g.entry_fee, g.total_pot
-    FROM games g
-    LEFT JOIN users u ON g.creator_id = u.id
-    LEFT JOIN game_participants gp ON g.id = gp.game_id
-    WHERE g.status = 'open' AND g.is_private = 0
-  `;
-  
-  let params = [];
-  
-  // Add radius search if coordinates and radius are provided
-  if (lat && lng && radius) {
-    const latNum = parseFloat(lat);
-    const lngNum = parseFloat(lng);
-    const radiusNum = parseFloat(radius);
-    
-    // Haversine formula to calculate distance
-    query += `
-      AND (
-        g.location_lat IS NOT NULL 
-        AND g.location_lng IS NOT NULL
-        AND (
-          6371 * acos(
-            cos(radians(?)) * cos(radians(g.location_lat)) * 
-            cos(radians(g.location_lng) - radians(?)) + 
-            sin(radians(?)) * sin(radians(g.location_lat))
-          )
-        ) <= ?
-      )
-    `;
-    params = [latNum, lngNum, latNum, radiusNum];
+    const token = jwt.sign({ id: user.id, name: user.name }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, city: user.city } });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
-  
-  query += ` GROUP BY g.id ORDER BY g.created_at DESC`;
-  
-  db.all(query, params, (err, games) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(games);
-  });
 });
 
-// Create a new game
-app.post('/api/games', authenticateToken, (req, res) => {
-  console.log('Create game request body:', req.body); // Debug log
-  const { title, sport, location, locationData, maxPlayers, gameTime, level, isCasual, isPrivate, minAge, isMoneyGame, entryFee } = req.body;
-  
-  if (!title || !sport || !location || !maxPlayers || !gameTime || !level) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  const user = await get('SELECT id, name, email, city FROM users WHERE id = ?', [req.user.id]);
+  if (!user) return res.sendStatus(404);
+  res.json({ user });
+});
 
-  const gameId = uuidv4();
-  const locationLat = locationData?.lat || null;
-  const locationLng = locationData?.lng || null;
-  const placeId = locationData?.place_id || null;
-  const minimumAge = minAge || 0;
-  const isMoney = isMoneyGame || false;
-  const fee = entryFee || 0;
-  const totalPot = isMoney ? fee * maxPlayers : 0;
-  
-  db.run(
-    'INSERT INTO games (id, title, sport, location, location_lat, location_lng, place_id, max_players, creator_id, game_time, level, is_casual, is_private, min_age, is_money_game, entry_fee, total_pot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [gameId, title, sport, location, locationLat, locationLng, placeId, maxPlayers, req.user.id, gameTime, level, isCasual ? 1 : 0, isPrivate ? 1 : 0, minimumAge, isMoney ? 1 : 0, fee, totalPot],
-    function(err) {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      
-      // Add creator as first participant
-      db.run(
-        'INSERT INTO game_participants (game_id, user_id) VALUES (?, ?)',
-        [gameId, req.user.id]
-      );
-      
-      res.json({ id: gameId, message: 'Game created successfully' });
-    }
+// ---------------------------------------------------------------------------
+// Game routes
+// ---------------------------------------------------------------------------
+app.get('/api/games', async (req, res) => {
+  const { sport, skill } = req.query;
+  const rows = await all('SELECT id FROM games ORDER BY starts_at ASC');
+  let games = (await Promise.all(rows.map((r) => serializeGame(r.id)))).filter(Boolean);
+  if (sport && sport !== 'all') games = games.filter((g) => g.sport === sport);
+  if (skill && skill !== 'all') games = games.filter((g) => g.skill === skill || g.skill === 'all');
+  res.json({ games });
+});
+
+app.get('/api/games/:id', async (req, res) => {
+  const game = await serializeGame(req.params.id);
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+  res.json({ game });
+});
+
+app.post('/api/games', authMiddleware, async (req, res) => {
+  const { sport, title, place, startsAt, maxPlayers, skill, minAge, distanceMi } = req.body;
+  if (!sport || !title || !place || !startsAt || !maxPlayers || !skill) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const id = uuidv4();
+  await run(
+    `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, creator_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, sport, title, place, distanceMi || 0, startsAt, maxPlayers, skill, minAge || 0, req.user.id]
   );
+  // creator is auto-confirmed as host
+  await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [id, req.user.id, 'confirmed']);
+  const game = await serializeGame(id);
+  res.json({ game });
 });
 
-// Join a game
-app.post('/api/games/:gameId/join', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  
-  db.get('SELECT * FROM games WHERE id = ?', [gameId], (err, game) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.status !== 'open') return res.status(400).json({ error: 'Game is not open' });
-    
-    // Check if user is already in the game
-    db.get('SELECT * FROM game_participants WHERE game_id = ? AND user_id = ?', 
-      [gameId, req.user.id], (err, participant) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      if (participant) return res.status(400).json({ error: 'Already joined this game' });
-      
-      // Check if game is full
-      db.get('SELECT COUNT(*) as count FROM game_participants WHERE game_id = ?', 
-        [gameId], (err, result) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (result.count >= game.max_players) {
-          return res.status(400).json({ error: 'Game is full' });
-        }
-        
-        // Join the game
-        db.run('INSERT INTO game_participants (game_id, user_id) VALUES (?, ?)',
-          [gameId, req.user.id], function(err) {
-          if (err) return res.status(500).json({ error: 'Database error' });
-          
-          // Emit to all connected clients
-          io.emit('playerJoined', { gameId, userId: req.user.id, username: req.user.username });
-          res.json({ message: 'Joined game successfully' });
-        });
+app.delete('/api/games/:id', authMiddleware, async (req, res) => {
+  const g = await get('SELECT * FROM games WHERE id = ?', [req.params.id]);
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  if (g.creator_id !== req.user.id) return res.status(403).json({ error: 'Only the host can cancel this game' });
+  await run('DELETE FROM games WHERE id = ?', [req.params.id]);
+  await run('DELETE FROM participants WHERE game_id = ?', [req.params.id]);
+  await run('DELETE FROM messages WHERE game_id = ?', [req.params.id]);
+  res.json({ ok: true });
+});
+
+app.post('/api/games/:id/join', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const game = await serializeGame(gameId);
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+  if (game.participants.some((p) => p.player.id === req.user.id)) {
+    return res.status(400).json({ error: 'Already joined' });
+  }
+  const status = activeCount(game) < game.maxPlayers ? 'joined' : 'waitlisted';
+  await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [gameId, req.user.id, status]);
+  res.json({ game: await emitGameUpdate(gameId) });
+});
+
+app.post('/api/games/:id/leave', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  await run('DELETE FROM participants WHERE game_id = ? AND user_id = ?', [gameId, req.user.id]);
+  // promote the earliest waitlisted player if a spot opened
+  const game = await serializeGame(gameId);
+  if (game && activeCount(game) < game.maxPlayers) {
+    const next = game.participants.find((p) => p.status === 'waitlisted');
+    if (next) {
+      await run('UPDATE participants SET status = ? WHERE game_id = ? AND user_id = ?', ['joined', gameId, next.player.id]);
+      await pushToUser(next.player.id, {
+        title: "You're in! 🎉",
+        body: `A spot opened in "${game.title}". You're off the waitlist.`,
+        url: `/game/${gameId}`,
       });
-    });
-  });
-});
-
-// Check if user has joined a game
-app.get('/api/games/:gameId/joined', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  
-  db.get('SELECT * FROM game_participants WHERE game_id = ? AND user_id = ?', 
-    [gameId, req.user.id], (err, participant) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json({ joined: !!participant });
-  });
-});
-
-// Leave a game
-app.post('/api/games/:gameId/leave', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  
-  db.run('DELETE FROM game_participants WHERE game_id = ? AND user_id = ?',
-    [gameId, req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    
-    // Emit to all connected clients
-    io.emit('playerLeft', { gameId, userId: req.user.id, username: req.user.username });
-    res.json({ message: 'Left game successfully' });
-  });
-});
-
-// Get user profile
-app.get('/api/profile', authenticateToken, (req, res) => {
-  db.get(`
-    SELECT u.id, u.username, u.email, u.age, u.location, u.current_location, u.current_location_lat, u.current_location_lng,
-           u.home_location, u.home_location_lat, u.home_location_lng, u.favorite_sport, u.profile_pic, u.created_at
-    FROM users u
-    WHERE u.id = ?
-  `, [req.user.id], (err, profile) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
-
-    // Get user's sports preferences
-    db.all(`
-      SELECT sport, skill_level, is_primary
-      FROM user_sports
-      WHERE user_id = ?
-      ORDER BY is_primary DESC, skill_level DESC
-    `, [req.user.id], (err, sports) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-
-      // Get game statistics
-      db.all(`
-        SELECT
-          COUNT(*) as total_games,
-          SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins,
-          SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) as losses
-        FROM game_results
-        WHERE user_id = ?
-      `, [req.user.id], (err, stats) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-
-        const gameStats = stats[0] || { total_games: 0, wins: 0, losses: 0 };
-
-        res.json({
-          ...profile,
-          sports: sports || [],
-          stats: gameStats
-        });
-      });
-    });
-  });
-});
-
-// Get public user profile by userId
-app.get('/api/users/:userId/profile', authenticateToken, (req, res) => {
-  const { userId } = req.params;
-
-  db.get(`
-    SELECT u.id, u.username, u.age, u.location, u.favorite_sport, u.profile_pic, u.created_at
-    FROM users u
-    WHERE u.id = ?
-  `, [userId], (err, profile) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!profile) return res.status(404).json({ error: 'User not found' });
-
-    // Get user's sports preferences
-    db.all(`
-      SELECT sport, skill_level, is_primary
-      FROM user_sports
-      WHERE user_id = ?
-      ORDER BY is_primary DESC, skill_level DESC
-    `, [userId], (err, sports) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-
-      // Get game statistics
-      db.all(`
-        SELECT
-          COUNT(*) as total_games,
-          SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) as wins,
-          SUM(CASE WHEN result = 'loss' THEN 1 ELSE 0 END) as losses
-        FROM game_results
-        WHERE user_id = ?
-      `, [userId], (err, stats) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-
-        const gameStats = stats[0] || { total_games: 0, wins: 0, losses: 0 };
-
-        res.json({
-          ...profile,
-          sports: sports || [],
-          stats: gameStats
-        });
-      });
-    });
-  });
-});
-
-// Update user profile
-app.put('/api/profile', authenticateToken, (req, res) => {
-  const { username, age, location, current_location, current_location_lat, current_location_lng, 
-          home_location, home_location_lat, home_location_lng, favorite_sport, profile_pic, sports } = req.body;
-  
-  db.run(`
-    UPDATE users 
-    SET username = ?, age = ?, location = ?, current_location = ?, current_location_lat = ?, current_location_lng = ?,
-        home_location = ?, home_location_lat = ?, home_location_lng = ?, favorite_sport = ?, profile_pic = ?
-    WHERE id = ?
-  `, [username, age, location, current_location, current_location_lat, current_location_lng, 
-      home_location, home_location_lat, home_location_lng, favorite_sport, profile_pic, req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    
-    // Update sports preferences if provided
-    if (sports && Array.isArray(sports)) {
-      // Delete existing sports preferences
-      db.run('DELETE FROM user_sports WHERE user_id = ?', [req.user.id], (err) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        
-        // Insert new sports preferences
-        const insertPromises = sports.map(sport => {
-          return new Promise((resolve, reject) => {
-            db.run(
-              'INSERT INTO user_sports (user_id, sport, skill_level, is_primary) VALUES (?, ?, ?, ?)',
-              [req.user.id, sport.sport, sport.skill_level, sport.is_primary ? 1 : 0],
-              (err) => err ? reject(err) : resolve()
-            );
-          });
-        });
-        
-        Promise.all(insertPromises)
-          .then(() => res.json({ message: 'Profile updated successfully' }))
-          .catch(err => res.status(500).json({ error: 'Database error' }));
-      });
-    } else {
-      res.json({ message: 'Profile updated successfully' });
     }
-  });
-});
-
-// Get game participants
-app.get('/api/games/:gameId/participants', (req, res) => {
-  const { gameId } = req.params;
-  
-  db.all(`
-    SELECT u.id, u.username, gp.joined_at
-    FROM game_participants gp
-    JOIN users u ON gp.user_id = u.id
-    WHERE gp.game_id = ?
-    ORDER BY gp.joined_at ASC
-  `, [gameId], (err, participants) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(participants);
-  });
-});
-
-// Cancel (delete) a game by its creator
-app.delete('/api/games/:gameId', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  // Only allow the creator to delete the game
-  db.get('SELECT * FROM games WHERE id = ?', [gameId], (err, game) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.creator_id !== req.user.id) {
-      return res.status(403).json({ error: 'Only the creator can cancel this game' });
-    }
-    // Delete the game and all related participants
-    db.run('DELETE FROM games WHERE id = ?', [gameId], function(err) {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      db.run('DELETE FROM game_participants WHERE game_id = ?', [gameId], function(err) {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json({ message: 'Game cancelled successfully' });
-      });
-    });
-  });
-});
-
-// Complete a game and submit results
-app.post('/api/games/:gameId/complete', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  const { results } = req.body; // { homeScore, awayScore }
-  
-  if (!results || typeof results.homeScore !== 'number' || typeof results.awayScore !== 'number') {
-    return res.status(400).json({ error: 'Home and away scores are required' });
   }
-  
-  db.get('SELECT * FROM games WHERE id = ?', [gameId], (err, game) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.creator_id !== req.user.id) {
-      return res.status(403).json({ error: 'Only the creator can complete this game' });
-    }
-    
-    // Get all participants to determine winners/losers
-    db.all('SELECT user_id FROM game_participants WHERE game_id = ?', [gameId], (err, participants) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      
-      // Determine which team won based on scores
-      const homeWon = results.homeScore > results.awayScore;
-      const awayWon = results.awayScore > results.homeScore;
-      const isTie = results.homeScore === results.awayScore;
-      
-      // Insert results for each participant
-      const insertPromises = participants.map((participant, index) => {
-        return new Promise((resolve, reject) => {
-          // Determine result based on team assignment (even indices = home, odd indices = away)
-          let result = 'tie';
-          if (!isTie) {
-            if (index % 2 === 0) { // Home team
-              result = homeWon ? 'win' : 'loss';
-            } else { // Away team
-              result = awayWon ? 'win' : 'loss';
-            }
-          }
-          
-          db.run(
-            'INSERT INTO game_results (id, game_id, user_id, result, score, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
-            [require('uuid').v4(), gameId, participant.user_id, result, index % 2 === 0 ? results.homeScore : results.awayScore],
-            (err) => err ? reject(err) : resolve()
-          );
-        });
-      });
-      
-      Promise.all(insertPromises)
-        .then(() => {
-          // Mark game as completed
-          db.run('UPDATE games SET status = ? WHERE id = ?', ['completed', gameId], (err) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            res.json({ message: 'Game completed and results saved' });
-          });
-        })
-        .catch(() => res.status(500).json({ error: 'Database error' }));
-    });
-  });
+  res.json({ game: await emitGameUpdate(gameId) });
 });
 
-// Friends API endpoints
+async function setStatus(req, res, status) {
+  const gameId = req.params.id;
+  const existing = await get('SELECT * FROM participants WHERE game_id = ? AND user_id = ?', [gameId, req.user.id]);
+  if (!existing) return res.status(400).json({ error: 'Not in this game' });
+  if (existing.status === 'waitlisted') return res.status(400).json({ error: 'Still on the waitlist' });
+  await run('UPDATE participants SET status = ? WHERE game_id = ? AND user_id = ?', [status, gameId, req.user.id]);
+  res.json({ game: await emitGameUpdate(gameId) });
+}
+app.post('/api/games/:id/confirm', authMiddleware, (req, res) => setStatus(req, res, 'confirmed'));
+app.post('/api/games/:id/checkin', authMiddleware, (req, res) => setStatus(req, res, 'checked-in'));
 
-// Search users by username
-app.get('/api/users/search', authenticateToken, (req, res) => {
-  const { q } = req.query;
-  if (!q || q.length < 2) {
-    return res.status(400).json({ error: 'Search query must be at least 2 characters' });
-  }
-  
-  db.all(`
-    SELECT id, username, email, age, location, created_at
-    FROM users 
-    WHERE username LIKE ? AND id != ?
-    ORDER BY username
-    LIMIT 20
-  `, [`%${q}%`, req.user.id], (err, users) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(users);
-  });
+// ---------------------------------------------------------------------------
+// Chat (posted over REST, broadcast over socket)
+// ---------------------------------------------------------------------------
+app.post('/api/games/:id/messages', authMiddleware, async (req, res) => {
+  const { text } = req.body;
+  const trimmed = (text || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'Empty message' });
+  const id = uuidv4();
+  await run('INSERT INTO messages (id, game_id, user_id, text) VALUES (?, ?, ?, ?)', [id, req.params.id, req.user.id, trimmed]);
+  const user = await get('SELECT id, name FROM users WHERE id = ?', [req.user.id]);
+  const message = { id, player: playerOf(user), text: trimmed, at: new Date().toISOString() };
+  io.to(req.params.id).emit('new-message', { gameId: req.params.id, message });
+  res.json({ message });
 });
 
-// Send friend request
-app.post('/api/friends/request', authenticateToken, (req, res) => {
-  const { friendId } = req.body;
-  
-  if (!friendId) {
-    return res.status(400).json({ error: 'Friend ID is required' });
-  }
-  
-  if (friendId === req.user.id) {
-    return res.status(400).json({ error: 'Cannot send friend request to yourself' });
-  }
-  
-  // Check if friend request already exists
-  db.get('SELECT * FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)', 
-    [req.user.id, friendId, friendId, req.user.id], (err, existing) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (existing) {
-      return res.status(400).json({ error: 'Friend request already exists' });
-    }
-    
-    // Create friend request
-    const friendRequestId = uuidv4();
-    db.run('INSERT INTO friends (id, user_id, friend_id, status) VALUES (?, ?, ?, ?)', 
-      [friendRequestId, req.user.id, friendId, 'pending'], (err) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      res.json({ message: 'Friend request sent successfully' });
-    });
+// ---------------------------------------------------------------------------
+// Push routes
+// ---------------------------------------------------------------------------
+app.get('/api/push/vapid', (req, res) => res.json({ publicKey: vapid.publicKey }));
+
+app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Invalid subscription' });
+  await run(
+    `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id`,
+    [uuidv4(), req.user.id, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth]
+  );
+  await pushToUser(req.user.id, {
+    title: 'Reminders on ✅',
+    body: "We'll nudge you to confirm before each game.",
+    url: '/me',
   });
+  res.json({ ok: true });
 });
 
-// Accept friend request
-app.post('/api/friends/accept', authenticateToken, (req, res) => {
-  const { friendId } = req.body;
-  
-  if (!friendId) {
-    return res.status(400).json({ error: 'Friend ID is required' });
-  }
-  
-  db.run('UPDATE friends SET status = ? WHERE friend_id = ? AND user_id = ? AND status = ?', 
-    ['accepted', req.user.id, friendId, 'pending'], function(err) {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Friend request not found' });
-    }
-    res.json({ message: 'Friend request accepted' });
-  });
-});
-
-// Reject friend request
-app.post('/api/friends/reject', authenticateToken, (req, res) => {
-  const { friendId } = req.body;
-  
-  if (!friendId) {
-    return res.status(400).json({ error: 'Friend ID is required' });
-  }
-  
-  db.run('DELETE FROM friends WHERE friend_id = ? AND user_id = ? AND status = ?', 
-    [req.user.id, friendId, 'pending'], function(err) {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json({ message: 'Friend request rejected' });
-  });
-});
-
-// Remove friend
-app.delete('/api/friends/:friendId', authenticateToken, (req, res) => {
-  const { friendId } = req.params;
-  
-  db.run('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)', 
-    [req.user.id, friendId, friendId, req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json({ message: 'Friend removed successfully' });
-  });
-});
-
-// Get friends list
-app.get('/api/friends', authenticateToken, (req, res) => {
-  db.all(`
-    SELECT 
-      u.id, u.username, u.email, u.age, u.location, u.created_at,
-      f.status, f.created_at as friendship_date
-    FROM friends f
-    JOIN users u ON (f.friend_id = u.id OR f.user_id = u.id)
-    WHERE (f.user_id = ? OR f.friend_id = ?) 
-    AND f.status = 'accepted'
-    AND u.id != ?
-    ORDER BY u.username
-  `, [req.user.id, req.user.id, req.user.id], (err, friends) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(friends);
-  });
-});
-
-// Get pending friend requests
-app.get('/api/friends/pending', authenticateToken, (req, res) => {
-  db.all(`
-    SELECT 
-      u.id, u.username, u.email, u.age, u.location, u.created_at,
-      f.created_at as request_date
-    FROM friends f
-    JOIN users u ON f.user_id = u.id
-    WHERE f.friend_id = ? AND f.status = 'pending'
-    ORDER BY f.created_at DESC
-  `, [req.user.id], (err, requests) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(requests);
-  });
-});
-
-// Chat API endpoints
-
-// Get chat messages for a game
-app.get('/api/games/:gameId/chat', authenticateToken, (req, res) => {
-  const { gameId } = req.params;
-  
-  db.all(`
-    SELECT 
-      cm.id, cm.message, cm.created_at,
-      u.id as user_id, u.username
-    FROM chat_messages cm
-    JOIN users u ON cm.user_id = u.id
-    WHERE cm.game_id = ?
-    ORDER BY cm.created_at ASC
-    LIMIT 100
-  `, [gameId], (err, messages) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(messages);
-  });
-});
-
-// Report a player
-app.post('/api/reports', authenticateToken, (req, res) => {
-  const { reportedUserId, gameId, reason, description } = req.body;
-  
-  if (!reportedUserId || !gameId || !reason) {
-    return res.status(400).json({ error: 'Reported user ID, game ID, and reason are required' });
-  }
-  
-  if (reportedUserId === req.user.id) {
-    return res.status(400).json({ error: 'Cannot report yourself' });
-  }
-  
-  // Check if user is already reported in this game
-  db.get('SELECT * FROM player_reports WHERE reporter_id = ? AND reported_user_id = ? AND game_id = ?', 
-    [req.user.id, reportedUserId, gameId], (err, existingReport) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (existingReport) {
-      return res.status(400).json({ error: 'You have already reported this player for this game' });
-    }
-    
-    // Create the report
-    const reportId = uuidv4();
-    db.run(
-      'INSERT INTO player_reports (id, reporter_id, reported_user_id, game_id, reason, description) VALUES (?, ?, ?, ?, ?, ?)',
-      [reportId, req.user.id, reportedUserId, gameId, reason, description || null],
-      function(err) {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.json({ message: 'Report submitted successfully', reportId });
-      }
-    );
-  });
-});
-
-// Get all reports (admin endpoint for testing)
-app.get('/api/reports', authenticateToken, (req, res) => {
-  db.all(`
-    SELECT 
-      pr.id, pr.reason, pr.description, pr.status, pr.created_at,
-      reporter.username as reporter_username,
-      reported.username as reported_username,
-      g.title as game_title
-    FROM player_reports pr
-    JOIN users reporter ON pr.reporter_id = reporter.id
-    JOIN users reported ON pr.reported_user_id = reported.id
-    JOIN games g ON pr.game_id = g.id
-    ORDER BY pr.created_at DESC
-  `, (err, reports) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(reports);
-  });
-});
-
-// Find similar friends based on location and favorite sport
-app.get('/api/friends/similar', authenticateToken, (req, res) => {
-  const { lat, lng, radius = 30 } = req.query;
-  
-  if (!lat || !lng) {
-    return res.status(400).json({ error: 'Latitude and longitude are required' });
-  }
-  
-  const userLat = parseFloat(lat);
-  const userLng = parseFloat(lng);
-  const searchRadius = parseFloat(radius);
-  
-  // First get the current user's favorite sport
-  db.get('SELECT favorite_sport FROM users WHERE id = ?', [req.user.id], (err, user) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!user || !user.favorite_sport) {
-      return res.status(400).json({ error: 'User must have a favorite sport set' });
-    }
-    
-    // Find users within radius who have the same favorite sport
-    const query = `
-      SELECT 
-        u.id, u.username, u.email, u.age, u.current_location, u.home_location, u.favorite_sport, u.profile_pic,
-        u.current_location_lat, u.current_location_lng, u.home_location_lat, u.home_location_lng,
-        (
-          6371 * acos(
-            cos(radians(?)) * cos(radians(COALESCE(u.current_location_lat, u.home_location_lat))) * 
-            cos(radians(COALESCE(u.current_location_lng, u.home_location_lng)) - radians(?)) + 
-            sin(radians(?)) * sin(radians(COALESCE(u.current_location_lat, u.home_location_lat)))
-          )
-        ) as distance
-      FROM users u
-      WHERE u.id != ? 
-        AND u.favorite_sport = ?
-        AND (
-          (u.current_location_lat IS NOT NULL AND u.current_location_lng IS NOT NULL) OR
-          (u.home_location_lat IS NOT NULL AND u.home_location_lng IS NOT NULL)
-        )
-        AND (
-          6371 * acos(
-            cos(radians(?)) * cos(radians(COALESCE(u.current_location_lat, u.home_location_lat))) * 
-            cos(radians(COALESCE(u.current_location_lng, u.home_location_lng)) - radians(?)) + 
-            sin(radians(?)) * sin(radians(COALESCE(u.current_location_lat, u.home_location_lat)))
-          )
-        ) <= ?
-      ORDER BY distance ASC
-      LIMIT 10
-    `;
-    
-    db.all(query, [userLat, userLng, userLat, req.user.id, user.favorite_sport, userLat, userLng, userLat, searchRadius], (err, friends) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      res.json(friends);
-    });
-  });
-});
-
-// Get leaderboard for best records (League A & B)
-app.get('/api/leaderboard/records', (req, res) => {
-  const { league } = req.query;
-  
-  if (!league || !['A', 'B'].includes(league)) {
-    return res.status(400).json({ error: 'League must be A or B' });
-  }
-  
-  const query = `
-    SELECT 
-      u.id,
-      u.username,
-      u.profile_pic,
-      COUNT(gr.id) as total_games,
-      SUM(CASE WHEN gr.result = 'win' THEN 1 ELSE 0 END) as wins,
-      SUM(CASE WHEN gr.result = 'loss' THEN 1 ELSE 0 END) as losses,
-      SUM(CASE WHEN gr.result = 'tie' THEN 1 ELSE 0 END) as ties,
-      ROUND(
-        (SUM(CASE WHEN gr.result = 'win' THEN 1 ELSE 0 END) * 100.0) / 
-        NULLIF(COUNT(gr.id), 0), 2
-      ) as win_percentage
-    FROM users u
-    JOIN game_results gr ON u.id = gr.user_id
-    JOIN games g ON gr.game_id = g.id
-    WHERE g.level = ? AND g.status = 'completed'
-    GROUP BY u.id, u.username, u.profile_pic
-    HAVING total_games >= 3
-    ORDER BY win_percentage DESC, total_games DESC
-    LIMIT 20
-  `;
-  
-  db.all(query, [league], (err, results) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(results);
-  });
-});
-
-// Get leaderboard for highest earning players (money games)
-app.get('/api/leaderboard/earnings', (req, res) => {
-  const query = `
-    SELECT 
-      u.id,
-      u.username,
-      u.profile_pic,
-      COUNT(gr.id) as money_games_played,
-      SUM(CASE WHEN gr.result = 'win' THEN g.entry_fee ELSE 0 END) as total_earnings,
-      SUM(CASE WHEN gr.result = 'loss' THEN g.entry_fee ELSE 0 END) as total_losses,
-      SUM(g.entry_fee) as total_wagered,
-      ROUND(
-        (SUM(CASE WHEN gr.result = 'win' THEN 1 ELSE 0 END) * 100.0) / 
-        NULLIF(COUNT(gr.id), 0), 2
-      ) as win_percentage
-    FROM users u
-    JOIN game_results gr ON u.id = gr.user_id
-    JOIN games g ON gr.game_id = g.id
-    WHERE g.is_money_game = 1 AND g.status = 'completed'
-    GROUP BY u.id, u.username, u.profile_pic
-    HAVING money_games_played >= 1
-    ORDER BY total_earnings DESC, win_percentage DESC
-    LIMIT 20
-  `;
-  
-  db.all(query, [], (err, results) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    res.json(results);
-  });
-});
-
-// Get player game history
-app.get('/api/profile/game-history', authenticateToken, (req, res) => {
-  db.all(`
-    SELECT 
-      g.id as game_id,
-      g.title,
-      g.sport,
-      g.location,
-      g.game_time,
-      g.level,
-      g.is_casual,
-      g.is_money_game,
-      g.entry_fee,
-      g.total_pot,
-      g.created_at as game_created_at,
-      gr.result,
-      gr.score,
-      gr.created_at as completed_at
-    FROM game_results gr
-    JOIN games g ON gr.game_id = g.id
-    WHERE gr.user_id = ? AND g.status = 'completed'
-    ORDER BY gr.created_at DESC
-  `, [req.user.id], (err, gameHistory) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    
-    // For each game, get the participants to show teams
-    const getGameParticipants = (gameId) => {
-      return new Promise((resolve, reject) => {
-        db.all(`
-          SELECT 
-            u.id,
-            u.username,
-            u.age,
-            gr.result,
-            gr.score
-          FROM game_participants gp
-          JOIN users u ON gp.user_id = u.id
-          LEFT JOIN game_results gr ON gr.game_id = gp.game_id AND gr.user_id = gp.user_id
-          WHERE gp.game_id = ?
-          ORDER BY gr.result DESC, u.username
-        `, [gameId], (err, participants) => {
-          if (err) reject(err);
-          else resolve(participants);
-        });
-      });
-    };
-    
-    // Get participants for each game
-    Promise.all(gameHistory.map(game => 
-      getGameParticipants(game.game_id).then(participants => ({
-        ...game,
-        participants
-      }))
-    )).then(gamesWithParticipants => {
-      res.json(gamesWithParticipants);
-    }).catch(err => {
-      res.status(500).json({ error: 'Database error' });
-    });
-  });
-});
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-  
-  // Store user info for chat messages
-  socket.userId = null;
-  socket.username = null;
-  
-  socket.on('joinGameRoom', (data) => {
-    const { gameId, userId, username } = data;
-    socket.userId = userId;
-    socket.username = username;
-    socket.join(gameId);
-    console.log(`User ${username} (${userId}) joined game room: ${gameId}`);
-  });
-  
-  socket.on('leaveGameRoom', (gameId) => {
-    socket.leave(gameId);
-    console.log(`User ${socket.username} left game room: ${gameId}`);
-  });
-  
-  socket.on('sendMessage', async (data) => {
-    const { gameId, message } = data;
-    
-    if (!socket.userId || !message || !message.trim()) {
-      return;
-    }
-    
-    try {
-      // Save message to database
-      const messageId = uuidv4();
-      db.run(
-        'INSERT INTO chat_messages (id, game_id, user_id, message) VALUES (?, ?, ?, ?)',
-        [messageId, gameId, socket.userId, message.trim()],
-        function(err) {
-          if (err) {
-            console.error('Error saving chat message:', err);
-            return;
-          }
-          
-          // Broadcast message to all users in the game room
-          io.to(gameId).emit('newMessage', {
-            id: messageId,
-            message: message.trim(),
-            user_id: socket.userId,
-            username: socket.username,
-            created_at: new Date().toISOString()
-          });
-        }
+// ---------------------------------------------------------------------------
+// Reminder scheduler — sends a "still coming?" push a few hours before a game
+// ---------------------------------------------------------------------------
+async function runReminderSweep() {
+  try {
+    const games = await all('SELECT * FROM games');
+    const now = Date.now();
+    for (const g of games) {
+      const hoursUntil = (new Date(g.starts_at).getTime() - now) / 3600_000;
+      if (hoursUntil <= 0 || hoursUntil > 3) continue; // confirm window: within 3h of start
+      const pending = await all(
+        `SELECT user_id FROM participants WHERE game_id = ? AND status = 'joined'`,
+        [g.id]
       );
-    } catch (error) {
-      console.error('Error handling chat message:', error);
+      for (const p of pending) {
+        const already = await get(
+          'SELECT 1 FROM reminders_sent WHERE game_id = ? AND user_id = ? AND kind = ?',
+          [g.id, p.user_id, 'confirm']
+        );
+        if (already) continue;
+        await pushToUser(p.user_id, {
+          title: `Still on for ${g.title}? 🏀`,
+          body: `${g.place} — confirm so we hold your spot.`,
+          url: `/game/${g.id}`,
+        });
+        await run('INSERT OR IGNORE INTO reminders_sent (game_id, user_id, kind) VALUES (?, ?, ?)', [g.id, p.user_id, 'confirm']);
+      }
     }
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
+  } catch (err) {
+    console.error('Reminder sweep failed:', err.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Socket.io — rooms for live game + chat updates (read-only broadcast channel)
+// ---------------------------------------------------------------------------
+io.on('connection', (socket) => {
+  socket.on('join-game', (gameId) => gameId && socket.join(gameId));
+  socket.on('leave-game', (gameId) => gameId && socket.leave(gameId));
 });
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
+// ---------------------------------------------------------------------------
+// Seed sample data on first run
+// ---------------------------------------------------------------------------
+async function seedIfEmpty() {
+  const count = await get('SELECT COUNT(*) as n FROM users');
+  if (count.n > 0) return;
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Accessible at http://localhost:${PORT} and http://YOUR_IP:${PORT}`);
-}); 
+  const pw = await bcrypt.hash('pickup123', 10);
+  const users = [
+    ['u-jordan', 'Jordan Diaz', 'jordan@demo.app'],
+    ['u-mia', 'Mia Khan', 'mia@demo.app'],
+    ['u-andre', 'Andre Ruiz', 'andre@demo.app'],
+    ['u-ray', 'Ray Park', 'ray@demo.app'],
+    ['u-tam', 'Tam Silva', 'tam@demo.app'],
+    ['u-luis', 'Luis Boyd', 'luis@demo.app'],
+    ['u-nina', 'Nina Powell', 'nina@demo.app'],
+    ['u-dee', 'Dee Kim', 'dee@demo.app'],
+    ['u-cam', 'Cam Moss', 'cam@demo.app'],
+  ];
+  for (const [id, name, email] of users) {
+    await run('INSERT INTO users (id, name, email, password) VALUES (?, ?, ?, ?)', [id, name, email, pw]);
+  }
+
+  const hrs = (h) => new Date(Date.now() + h * 3600_000).toISOString();
+  const games = [
+    { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 16, creator: 'u-jordan',
+      roster: [['u-jordan', 'confirmed'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed'], ['u-luis', 'confirmed'], ['u-cam', 'confirmed'], ['u-andre', 'joined'], ['u-dee', 'joined'], ['u-ray', 'waitlisted']],
+      chat: [['u-jordan', 'Bringing an extra ball, courts get busy 👀'], ['u-andre', 'Running 5 min late, save me a spot!']] },
+    { id: 'g-soccer', sport: 'soccer', title: 'Pickup Soccer', place: 'Mission Bay Turf', distance: 1.2, starts: hrs(30), max: 18, skill: 'all', minAge: 0, creator: 'u-tam',
+      roster: [['u-tam', 'joined'], ['u-luis', 'joined'], ['u-nina', 'joined'], ['u-mia', 'joined']],
+      chat: [['u-tam', 'Pinnies provided, wear dark if you can']] },
+    { id: 'g-flag', sport: 'flag-football', title: '5v5 Flag · Riverside', place: 'Riverside Park, Field 3', distance: 3.4, starts: hrs(6), max: 10, skill: 'competitive', minAge: 18, creator: 'u-dee',
+      roster: [['u-dee', 'confirmed'], ['u-cam', 'confirmed'], ['u-jordan', 'confirmed'], ['u-andre', 'confirmed'], ['u-ray', 'confirmed'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed'], ['u-luis', 'confirmed'], ['u-nina', 'confirmed'], ['u-ray', 'confirmed']],
+      chat: [] },
+    { id: 'g-baseball', sport: 'baseball', title: 'Weekend Baseball', place: 'Lincoln Diamond', distance: 4.0, starts: hrs(48), max: 18, skill: 'casual', minAge: 0, creator: 'u-nina',
+      roster: [['u-nina', 'joined'], ['u-ray', 'joined'], ['u-dee', 'joined']],
+      chat: [] },
+  ];
+
+  for (const g of games) {
+    await run(
+      `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, creator_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [g.id, g.sport, g.title, g.place, g.distance, g.starts, g.max, g.skill, g.minAge, g.creator]
+    );
+    const seen = new Set();
+    for (const [uid, status] of g.roster) {
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [g.id, uid, status]);
+    }
+    for (const [uid, text] of g.chat) {
+      await run('INSERT INTO messages (id, game_id, user_id, text) VALUES (?, ?, ?, ?)', [uuidv4(), g.id, uid, text]);
+    }
+  }
+  console.log('Seeded sample users and games.');
+}
+
+// ---------------------------------------------------------------------------
+// SPA fallback + boot
+// ---------------------------------------------------------------------------
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../client/build/index.html')));
+
+(async () => {
+  await initDb();
+  await seedIfEmpty();
+  setInterval(runReminderSweep, 60_000);
+  server.listen(PORT, '0.0.0.0', () => console.log(`Pick Up server running on port ${PORT}`));
+})();

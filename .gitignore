@@ -5,4 +5,5 @@ node_modules/
 .vercel
 client/build/
 server/pickup.db
+server/.vapid.json
 *.log

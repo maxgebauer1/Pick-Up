@@ -32,21 +32,30 @@ export const CreateGame: React.FC = () => {
   const [skill, setSkill] = useState<SkillLevel>('intermediate');
   const [minAge, setMinAge] = useState(0);
 
-  const canCreate = title.trim() && place.trim() && when;
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const canCreate = title.trim() && place.trim() && when && !saving;
 
-  const create = () => {
+  const create = async () => {
     if (!canCreate) return;
-    const id = createGame({
-      sport,
-      title: title.trim(),
-      place: place.trim(),
-      distanceMi: 0,
-      startsAt: new Date(when).toISOString(),
-      maxPlayers,
-      skill,
-      minAge,
-    });
-    nav(`/game/${id}`);
+    setSaving(true);
+    setErr(null);
+    try {
+      const id = await createGame({
+        sport,
+        title: title.trim(),
+        place: place.trim(),
+        distanceMi: 0,
+        startsAt: new Date(when).toISOString(),
+        maxPlayers,
+        skill,
+        minAge,
+      });
+      nav(`/game/${id}`);
+    } catch (e: any) {
+      setErr(e.message || 'Could not create the game');
+      setSaving(false);
+    }
   };
 
   return (
@@ -199,8 +208,9 @@ export const CreateGame: React.FC = () => {
       {/* sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line">
         <div className="mx-auto max-w-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {err && <p className="text-[13px] text-[#a23b34] font-semibold mb-2 text-center">{err}</p>}
           <button className="btn-primary" disabled={!canCreate} onClick={create}>
-            Create game
+            {saving ? 'Creating…' : 'Create game'}
           </button>
         </div>
       </div>

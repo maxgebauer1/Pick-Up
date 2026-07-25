@@ -1,109 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-border-subtle;
-  }
-  
   html {
-    background-color: #050815;
+    background-color: #f4f6f3;
   }
-  
+
   body {
-    @apply bg-app text-text-primary font-sans;
+    @apply bg-bg text-ink font-sans;
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #050815;
-    /* Mobile optimizations */
     -webkit-tap-highlight-color: transparent;
-    touch-action: pan-y;
     overflow-x: hidden;
   }
-  
+
   #root {
-    background-color: #050815;
     min-height: 100vh;
-    /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
     width: 100%;
   }
 
-  h1 {
-    @apply text-heading-1 font-bold;
-  }
-
-  h2 {
-    @apply text-heading-2 font-semibold;
-  }
-
-  h3 {
-    @apply text-heading-3 font-medium;
-  }
-
-  p {
-    @apply text-body;
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
+  /* Primary action */
   .btn-primary {
-    @apply bg-accent-primary text-app font-semibold text-body px-6 py-3 rounded-pill transition-all duration-200;
-    @apply hover:opacity-90 hover:shadow-lg hover:shadow-accent-primary/20 active:scale-[0.98];
-    box-shadow: 0 2px 8px rgba(0, 240, 255, 0.2), 0 4px 16px rgba(0, 240, 255, 0.1);
+    @apply w-full bg-green text-white font-extrabold rounded-field px-5 py-3.5 text-[15px]
+           transition-all duration-150 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-secondary {
-    @apply bg-surface/50 backdrop-blur-sm border border-accent-primary/30 text-accent-primary font-medium text-body px-6 py-3 rounded-pill transition-all duration-200;
-    @apply hover:bg-accent-primary/10 hover:border-accent-primary/50 hover:shadow-lg hover:shadow-accent-primary/10 active:scale-[0.98];
+    @apply bg-surface border border-line text-muted font-bold rounded-field px-5 py-3.5 text-[15px]
+           transition-all duration-150 active:scale-[0.99];
   }
 
-  .btn-destructive {
-    @apply bg-surface/50 backdrop-blur-sm border border-error/30 text-error font-medium text-body px-6 py-3 rounded-pill transition-all duration-200;
-    @apply hover:bg-error/10 hover:border-error/50 hover:shadow-lg hover:shadow-error/10 active:scale-[0.98];
-  }
-
+  /* Card surface */
   .card {
-    @apply bg-surface/80 backdrop-blur-md rounded-card p-4 border border-border-subtle/50;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
+    @apply bg-surface rounded-card border border-line shadow-card;
   }
 
-  .card:hover {
-    box-shadow: 0 2px 6px rgba(0, 240, 255, 0.1), 0 8px 20px rgba(0, 0, 0, 0.3);
-    border-color: rgba(0, 240, 255, 0.2);
-  }
-
+  /* Filter / meta chips */
   .chip {
-    @apply px-3 py-1.5 rounded-pill text-caption font-medium border border-border-subtle/50 bg-surface/30 backdrop-blur-sm text-text-secondary transition-all duration-200;
-    @apply hover:border-accent-primary/30 hover:bg-surface/50 active:scale-[0.96];
+    @apply px-3 py-1.5 rounded-pill text-[12.5px] font-semibold border border-line bg-surface
+           text-muted transition-all duration-150 active:scale-[0.96] whitespace-nowrap;
   }
 
   .chip-active {
-    @apply bg-accent-primary text-app border-accent-primary;
-    box-shadow: 0 2px 8px rgba(0, 240, 255, 0.3);
+    @apply bg-green text-white border-transparent;
+  }
+
+  /* Soft brand pill */
+  .pill-green {
+    @apply inline-flex items-center gap-1.5 text-[12px] font-bold text-green bg-green-soft
+           px-3 py-1.5 rounded-pill;
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
+/* Slim scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(31, 122, 77, 0.18); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(31, 122, 77, 0.32); }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.2);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.4);
-} 
+/* Hide scrollbar for horizontal chip rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

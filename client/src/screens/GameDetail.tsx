@@ -5,7 +5,7 @@ import { useGameDetail, gamePhase, activeCount, confirmedCount, spotsLeft, isFul
 import { useAuth } from '../context/AuthContext';
 import { SportIcon } from '../icons/Sports';
 import { Avatar } from '../components/Avatar';
-import { skillMeta, ageLabel, Participant, AttendanceStatus } from '../types';
+import { skillMeta, sportMeta, ageLabel, Participant, AttendanceStatus } from '../types';
 import { startLabel, startsInLabel, timeAgo } from '../lib/format';
 
 const StatusPill = React.memo(function StatusPill({ status }: { status: AttendanceStatus }) {
@@ -45,6 +45,7 @@ export const GameDetail: React.FC = () => {
   }
 
   const skill = skillMeta(game.skill);
+  const sport = sportMeta(game.sport);
   const phase = gamePhase(game);
   const me = myParticipant(game, user?.id);
   const full = isFull(game);
@@ -78,7 +79,10 @@ export const GameDetail: React.FC = () => {
       </div>
 
       <div className="px-4 pb-40 flex-1">
-        <span className="pill-green">
+        <span
+          className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-pill"
+          style={{ color: sport.color, background: `${sport.color}1f` }}
+        >
           <SportIcon sport={game.sport} size={14} />
           <span className="capitalize">{game.sport.replace('-', ' ')}</span>
           <span className="opacity-60">·</span>
@@ -116,7 +120,7 @@ export const GameDetail: React.FC = () => {
               {startsInLabel(game.startsAt)}
             </div>
             <p className="text-[13px] text-muted mt-1 mb-3">
-              Confirm you're coming so we hold your spot. Unconfirmed spots open to the waitlist soon.
+              Confirm so we hold your spot. Unconfirmed spots go to the waitlist.
             </p>
             <div className="flex gap-2.5">
               <button className="btn-primary flex-1" onClick={confirm}>Yes, I'm coming</button>
@@ -129,7 +133,7 @@ export const GameDetail: React.FC = () => {
           <div className="bg-green-soft rounded-card p-4 mt-5">
             <div className="flex items-center gap-2 text-[15px] font-extrabold text-green-deep">
               <MapPin size={17} strokeWidth={2.4} />
-              Game time — you here?
+              Game time. You here?
             </div>
             <p className="text-[13px] text-muted mt-1 mb-3">Check in so the host knows you made it.</p>
             <button className="btn-primary" onClick={checkIn}>I'm here</button>
@@ -138,7 +142,7 @@ export const GameDetail: React.FC = () => {
 
         {me?.status === 'checked-in' && (
           <div className="flex items-center gap-2 mt-5 text-[14px] font-bold text-green-deep bg-green-soft rounded-card px-4 py-3">
-            <Check size={17} strokeWidth={3} /> You're checked in — have a good game!
+            <Check size={17} strokeWidth={3} /> You're checked in.
           </div>
         )}
 
@@ -170,7 +174,7 @@ export const GameDetail: React.FC = () => {
           <h2 className="text-[13px] font-extrabold mb-3">Lobby chat</h2>
           <div className="bg-bg rounded-card p-3">
             {game.messages.length === 0 && (
-              <p className="text-[13px] text-faint text-center py-4">No messages yet — say hi 👋</p>
+              <p className="text-[13px] text-faint text-center py-4">No messages yet.</p>
             )}
             {game.messages.map((m) => {
               const mine = m.player.id === user?.id;

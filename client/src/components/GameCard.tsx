@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Game, skillMeta, ageLabel } from '../types';
+import { Game, skillMeta, sportMeta, ageLabel } from '../types';
 import { SportIcon } from '../icons/Sports';
 import { Avatar } from './Avatar';
 import { startLabel } from '../lib/format';
@@ -11,6 +11,7 @@ import { startLabel } from '../lib/format';
 export const GameCard = React.memo(function GameCard({ game }: { game: Game }) {
   const nav = useNavigate();
   const skill = skillMeta(game.skill);
+  const sport = sportMeta(game.sport);
   // Derive every count from a single participants scan instead of the composed
   // store helpers (isFull -> spotsLeft -> activeCount), which each re-scan.
   const active = game.participants.filter((p) => p.status !== 'waitlisted');
@@ -25,7 +26,10 @@ export const GameCard = React.memo(function GameCard({ game }: { game: Game }) {
       className="card w-full text-left p-4 active:scale-[0.99] transition-transform"
     >
       <div className="flex items-center justify-between">
-        <span className="pill-green">
+        <span
+          className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-pill"
+          style={{ color: sport.color, background: `${sport.color}1f` }}
+        >
           <SportIcon sport={game.sport} size={14} />
           <span className="capitalize">{game.sport.replace('-', ' ')}</span>
         </span>

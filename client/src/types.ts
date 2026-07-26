@@ -47,24 +47,29 @@ export interface User {
   city?: string;
 }
 
-export const SPORTS: { id: Sport; label: string }[] = [
-  { id: 'basketball', label: 'Basketball' },
-  { id: 'soccer', label: 'Soccer' },
-  { id: 'baseball', label: 'Baseball' },
-  { id: 'flag-football', label: 'Flag football' },
+// Sport accent colors come straight from the four-color bar in the logo.
+export const SPORTS: { id: Sport; label: string; color: string }[] = [
+  { id: 'basketball', label: 'Basketball', color: '#f5a623' },
+  { id: 'soccer', label: 'Soccer', color: '#17a34a' },
+  { id: 'baseball', label: 'Baseball', color: '#1d4ed8' },
+  { id: 'flag-football', label: 'Flag football', color: '#d92d3a' },
 ];
 
 export const SKILLS: { id: SkillLevel; label: string; blurb: string; color: string }[] = [
-  { id: 'casual', label: 'Casual', blurb: 'Just for fun — new players welcome.', color: '#2f9e6a' },
-  { id: 'intermediate', label: 'Intermediate', blurb: 'Plays regularly, friendly but competitive.', color: '#3f6bd6' },
-  { id: 'competitive', label: 'Competitive', blurb: 'Fast and skilled — experience expected.', color: '#d9822b' },
-  { id: 'all', label: 'All levels', blurb: "Mixed abilities, everyone's welcome.", color: '#98a49b' },
+  { id: 'casual', label: 'Casual', blurb: 'For fun. New players welcome.', color: '#2f9e6a' },
+  { id: 'intermediate', label: 'Intermediate', blurb: 'Plays regularly. Friendly but competitive.', color: '#3f6bd6' },
+  { id: 'competitive', label: 'Competitive', blurb: 'Fast and skilled. Come ready to run.', color: '#d9822b' },
+  { id: 'all', label: 'All levels', blurb: 'Any skill level. Everyone welcome.', color: '#98a49b' },
 ];
 
-export const AGE_PRESETS = [0, 16, 18, 21];
+export const AGE_PRESETS = [0, 18, 35, 45];
 
 export function skillMeta(id: SkillLevel) {
   return SKILLS.find((s) => s.id === id)!;
+}
+
+export function sportMeta(id: Sport) {
+  return SPORTS.find((s) => s.id === id)!;
 }
 
 export function ageLabel(minAge: number) {

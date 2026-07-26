@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { BasketballIcon } from '../icons/Sports';
+import { Logo } from '../components/Logo';
 
 export const Login: React.FC = () => {
   const { login, register } = useAuth();
@@ -31,13 +31,9 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 max-w-md mx-auto">
       <div className="flex flex-col items-center mb-8">
-        <span className="w-16 h-16 rounded-[20px] bg-green flex items-center justify-center">
-          <BasketballIcon size={32} className="text-white" />
-        </span>
+        <Logo size={72} />
         <h1 className="text-[28px] font-extrabold mt-4">Pick Up</h1>
-        <p className="text-[14px] text-muted mt-1 text-center">
-          Find a pickup game near you — and actually show up.
-        </p>
+        <p className="text-[14px] text-muted mt-1 text-center">Always on</p>
       </div>
 
       <form onSubmit={submit} className="flex flex-col gap-3">

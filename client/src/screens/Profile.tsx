@@ -57,10 +57,10 @@ export const Profile: React.FC = () => {
             <p className="text-[14px] font-extrabold">Game reminders</p>
             <p className="text-[12.5px] text-muted">
               {pushState === 'denied'
-                ? 'Blocked — enable notifications in your browser settings.'
+                ? 'Blocked. Turn it on in your browser settings.'
                 : pushState === 'unsupported'
                 ? 'Not supported on this device.'
-                : 'Get a nudge to confirm before each game.'}
+                : 'A reminder to confirm before each game.'}
             </p>
           </div>
           <button

@@ -1,7 +1,7 @@
 {
   "short_name": "Pick Up",
-  "name": "Pick Up - Connect Athletes",
-  "description": "Connect with athletes for live pickup games",
+  "name": "Pick Up Sports",
+  "description": "Pickup games near you. Always on.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -24,7 +24,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#3b82f6",
+  "theme_color": "#14181c",
   "background_color": "#ffffff",
   "orientation": "portrait",
   "categories": ["sports", "social", "lifestyle"],

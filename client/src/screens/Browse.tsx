@@ -66,16 +66,14 @@ export const Browse: React.FC = () => {
 
       {/* Feed */}
       <div className="flex flex-col gap-3 mt-4">
-        {loading && <div className="text-center text-muted text-sm py-16">Finding games near you…</div>}
+        {loading && <div className="text-center text-muted text-sm py-16">Loading games…</div>}
         {error && !loading && <div className="text-center text-[#a23b34] text-sm py-16">{error}</div>}
         {!loading &&
           !error &&
           visible.map((g) => <GameCard key={g.id} game={g} />)}
         {!loading && !error && visible.length === 0 && (
           <div className="text-center text-muted text-sm py-16">
-            No games match those filters yet.
-            <br />
-            Be the first — tap <span className="font-bold text-green">Create</span>.
+            No games match. Tap <span className="font-bold text-green">Create</span> to start one.
           </div>
         )}
       </div>

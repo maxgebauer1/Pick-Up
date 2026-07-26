@@ -364,7 +364,7 @@ app.post('/api/games/:id/leave', authMiddleware, async (req, res) => {
       await run('UPDATE participants SET status = ? WHERE game_id = ? AND user_id = ?', ['joined', gameId, next.player.id]);
       // Fire-and-forget: don't block the HTTP response on the external push service.
       pushToUser(next.player.id, {
-        title: "You're in! 🎉",
+        title: "You're in",
         body: `A spot opened in "${game.title}". You're off the waitlist.`,
         url: `/game/${gameId}`,
       }).catch((err) => console.error('push failed:', err.message));
@@ -415,8 +415,8 @@ app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
   );
   // Fire-and-forget: the confirmation push shouldn't hold up the response.
   pushToUser(req.user.id, {
-    title: 'Reminders on ✅',
-    body: "We'll nudge you to confirm before each game.",
+    title: 'Reminders on',
+    body: "We'll remind you to confirm before each game.",
     url: '/me',
   }).catch((err) => console.error('push failed:', err.message));
   res.json({ ok: true });
@@ -449,8 +449,8 @@ async function runReminderSweep() {
       );
       for (const p of pending) {
         await pushToUser(p.user_id, {
-          title: `Still on for ${g.title}? 🏀`,
-          body: `${g.place} — confirm so we hold your spot.`,
+          title: `Still on for ${g.title}?`,
+          body: `${g.place}. Confirm so we hold your spot.`,
           url: `/game/${g.id}`,
         });
         await run('INSERT OR IGNORE INTO reminders_sent (game_id, user_id, kind) VALUES (?, ?, ?)', [g.id, p.user_id, 'confirm']);
@@ -494,16 +494,16 @@ async function seedIfEmpty() {
 
   const hrs = (h) => new Date(Date.now() + h * 3600_000).toISOString();
   const games = [
-    { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 16, creator: 'u-jordan',
+    { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 18, creator: 'u-jordan',
       roster: [['u-jordan', 'confirmed'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed'], ['u-luis', 'confirmed'], ['u-cam', 'confirmed'], ['u-andre', 'joined'], ['u-dee', 'joined'], ['u-ray', 'waitlisted']],
       chat: [['u-jordan', 'Bringing an extra ball, courts get busy 👀'], ['u-andre', 'Running 5 min late, save me a spot!']] },
     { id: 'g-soccer', sport: 'soccer', title: 'Pickup Soccer', place: 'Mission Bay Turf', distance: 1.2, starts: hrs(30), max: 18, skill: 'all', minAge: 0, creator: 'u-tam',
       roster: [['u-tam', 'joined'], ['u-luis', 'joined'], ['u-nina', 'joined'], ['u-mia', 'joined']],
       chat: [['u-tam', 'Pinnies provided, wear dark if you can']] },
-    { id: 'g-flag', sport: 'flag-football', title: '5v5 Flag · Riverside', place: 'Riverside Park, Field 3', distance: 3.4, starts: hrs(6), max: 10, skill: 'competitive', minAge: 18, creator: 'u-dee',
+    { id: 'g-flag', sport: 'flag-football', title: '5v5 Flag · Riverside', place: 'Riverside Park, Field 3', distance: 3.4, starts: hrs(6), max: 10, skill: 'competitive', minAge: 35, creator: 'u-dee',
       roster: [['u-dee', 'confirmed'], ['u-cam', 'confirmed'], ['u-jordan', 'confirmed'], ['u-andre', 'confirmed'], ['u-ray', 'confirmed'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed'], ['u-luis', 'confirmed'], ['u-nina', 'confirmed'], ['u-ray', 'confirmed']],
       chat: [] },
-    { id: 'g-baseball', sport: 'baseball', title: 'Weekend Baseball', place: 'Lincoln Diamond', distance: 4.0, starts: hrs(48), max: 18, skill: 'casual', minAge: 0, creator: 'u-nina',
+    { id: 'g-baseball', sport: 'baseball', title: 'Weekend Baseball', place: 'Lincoln Diamond', distance: 4.0, starts: hrs(48), max: 18, skill: 'casual', minAge: 45, creator: 'u-nina',
       roster: [['u-nina', 'joined'], ['u-ray', 'joined'], ['u-dee', 'joined']],
       chat: [] },
   ];

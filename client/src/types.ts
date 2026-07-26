@@ -5,6 +5,9 @@ export type SkillLevel = 'casual' | 'intermediate' | 'competitive' | 'all';
 // A player's relationship to a game as it moves through the show-up loop.
 export type AttendanceStatus = 'joined' | 'confirmed' | 'checked-in' | 'waitlisted';
 
+// Optional teams: the two sides a game can split into.
+export type TeamId = 'a' | 'b';
+
 export interface Player {
   id: string;
   name: string;
@@ -15,6 +18,7 @@ export interface Player {
 export interface Participant {
   player: Player;
   status: AttendanceStatus;
+  team?: TeamId | null;
   isHost?: boolean;
 }
 
@@ -35,6 +39,7 @@ export interface Game {
   maxPlayers: number;
   skill: SkillLevel;
   minAge: number; // 0 = all ages
+  teamsEnabled: boolean;
   creatorId?: string;
   participants: Participant[];
   messages: ChatMessage[];
@@ -63,6 +68,12 @@ export const SKILLS: { id: SkillLevel; label: string; blurb: string; color: stri
 ];
 
 export const AGE_PRESETS = [0, 18, 35, 45];
+
+// The two sides, colored with the blue and red from the logo.
+export const TEAMS: { id: TeamId; label: string; color: string }[] = [
+  { id: 'a', label: 'Team A', color: '#1d4ed8' },
+  { id: 'b', label: 'Team B', color: '#d92d3a' },
+];
 
 export function skillMeta(id: SkillLevel) {
   return SKILLS.find((s) => s.id === id)!;

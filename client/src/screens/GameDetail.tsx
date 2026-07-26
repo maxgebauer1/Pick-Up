@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, MapPin, Clock, Check, Send } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Check, Send, Shuffle, Users } from 'lucide-react';
 import { useGameDetail, gamePhase, activeCount, confirmedCount, spotsLeft, isFull, myParticipant } from '../data/store';
 import { useAuth } from '../context/AuthContext';
 import { SportIcon } from '../icons/Sports';
 import { Avatar } from '../components/Avatar';
-import { skillMeta, sportMeta, ageLabel, Participant, AttendanceStatus } from '../types';
+import { skillMeta, sportMeta, ageLabel, Participant, AttendanceStatus, TEAMS } from '../types';
 import { startLabel, startsInLabel, timeAgo } from '../lib/format';
 
 const StatusPill = React.memo(function StatusPill({ status }: { status: AttendanceStatus }) {
@@ -27,7 +27,8 @@ export const GameDetail: React.FC = () => {
   const { gameId } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
-  const { game, loading, error, join, leave, confirm, checkIn, sendMessage } = useGameDetail(gameId);
+  const { game, loading, error, join, leave, confirm, checkIn, sendMessage, setTeam, shuffleTeams, toggleTeams } =
+    useGameDetail(gameId);
   const [draft, setDraft] = useState('');
 
   if (loading) {
@@ -50,6 +51,7 @@ export const GameDetail: React.FC = () => {
   const me = myParticipant(game, user?.id);
   const full = isFull(game);
   const spots = spotsLeft(game);
+  const isHost = game.creatorId === user?.id;
 
   const active = game.participants.filter((p) => p.status !== 'waitlisted');
   const waitlist = game.participants.filter((p) => p.status === 'waitlisted');
@@ -169,6 +171,94 @@ export const GameDetail: React.FC = () => {
             </div>
           )}
         </section>
+
+        {game.teamsEnabled ? (
+          <section className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[13px] font-extrabold">Teams</h2>
+              {isHost && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={shuffleTeams}
+                    className="inline-flex items-center gap-1.5 text-[12.5px] font-extrabold text-green-deep bg-green-soft px-3 py-1.5 rounded-pill"
+                  >
+                    <Shuffle size={13} strokeWidth={2.6} /> Shuffle
+                  </button>
+                  <button onClick={toggleTeams} className="text-[12.5px] font-bold text-faint">
+                    Turn off
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {TEAMS.map((t) => {
+                const roster = active.filter((p) => p.team === t.id);
+                return (
+                  <div key={t.id} className="rounded-card border p-3" style={{ borderColor: `${t.color}44`, borderWidth: 1.5 }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[12.5px] font-extrabold" style={{ color: t.color }}>{t.label}</span>
+                      <span className="text-[12px] font-bold text-faint tabular-nums">{roster.length}</span>
+                    </div>
+                    {roster.length === 0 ? (
+                      <p className="text-[12px] text-faint py-1">No one yet</p>
+                    ) : (
+                      roster.map((p) => (
+                        <div key={p.player.id} className="flex items-center gap-2 py-1">
+                          <Avatar player={p.player} size={24} />
+                          <span className="text-[13px] font-bold truncate">
+                            {p.player.id === user?.id ? 'You' : p.player.name}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {active.some((p) => !p.team) && (
+              <p className="text-[12.5px] text-muted mt-2.5">
+                No side yet: {active.filter((p) => !p.team).map((p) => (p.player.id === user?.id ? 'You' : p.player.name)).join(', ')}
+              </p>
+            )}
+
+            {me && me.status !== 'waitlisted' && (
+              <div className="mt-3">
+                <p className="text-[12.5px] font-bold text-muted mb-2">Pick your side</p>
+                <div className="flex gap-2">
+                  {TEAMS.map((t) => {
+                    const on = me.team === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setTeam(on ? null : t.id)}
+                        className="flex-1 rounded-field py-2.5 text-[13px] font-extrabold transition-colors"
+                        style={
+                          on
+                            ? { background: t.color, color: '#fff', border: `1.5px solid ${t.color}` }
+                            : { color: t.color, border: `1.5px solid ${t.color}66` }
+                        }
+                      >
+                        {on ? `On ${t.label}` : `Join ${t.label}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        ) : (
+          isHost && (
+            <button
+              onClick={toggleTeams}
+              className="mt-6 w-full flex items-center justify-center gap-2 rounded-field border bg-surface py-3 text-[13.5px] font-bold text-muted"
+              style={{ borderWidth: 1.5, borderColor: '#e4eae4' }}
+            >
+              <Users size={15} /> Turn on teams
+            </button>
+          )
+        )}
 
         <section className="mt-6">
           <h2 className="text-[13px] font-extrabold mb-3">Lobby chat</h2>

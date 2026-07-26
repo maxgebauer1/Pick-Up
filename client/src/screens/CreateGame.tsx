@@ -31,6 +31,7 @@ export const CreateGame: React.FC = () => {
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [skill, setSkill] = useState<SkillLevel>('intermediate');
   const [minAge, setMinAge] = useState(0);
+  const [teamsEnabled, setTeamsEnabled] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export const CreateGame: React.FC = () => {
         maxPlayers,
         skill,
         minAge,
+        teamsEnabled,
       });
       nav(`/game/${id}`);
     } catch (e: any) {
@@ -202,6 +204,32 @@ export const CreateGame: React.FC = () => {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* teams */}
+        <div className="mt-5">
+          <Label hint="optional">Teams</Label>
+          <button
+            type="button"
+            onClick={() => setTeamsEnabled((v) => !v)}
+            className="w-full flex items-center gap-3 text-left rounded-field border px-3.5 py-3 bg-surface"
+            style={{ borderWidth: 1.5, borderColor: teamsEnabled ? '#1f7a4d' : '#e4eae4' }}
+          >
+            <span className="flex-1">
+              <span className="block text-[14px] font-extrabold">Split into two teams</span>
+              <span className="block text-[12.5px] text-muted mt-0.5">
+                Players pick a side at the game, or you shuffle them randomly.
+              </span>
+            </span>
+            <span
+              className={`w-12 h-7 rounded-pill p-0.5 shrink-0 transition-colors ${teamsEnabled ? 'bg-green' : 'bg-line'}`}
+            >
+              <span
+                className="block w-6 h-6 rounded-pill bg-white transition-transform"
+                style={{ transform: teamsEnabled ? 'translateX(20px)' : 'translateX(0)' }}
+              />
+            </span>
+          </button>
         </div>
       </div>
 

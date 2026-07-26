@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Game, Participant } from '../types';
+import { Game, Participant, TeamId } from '../types';
 import { api, CreateGamePayload } from '../lib/api';
 import { getSocket } from '../lib/socket';
 
@@ -150,6 +150,9 @@ export function useGameDetail(gameId: string | undefined) {
     leave: () => gameId && act(() => api.leave(gameId)),
     confirm: () => gameId && act(() => api.confirm(gameId)),
     checkIn: () => gameId && act(() => api.checkin(gameId)),
+    setTeam: (team: TeamId | null) => gameId && act(() => api.setTeam(gameId, team)),
+    shuffleTeams: () => gameId && act(() => api.shuffleTeams(gameId)),
+    toggleTeams: () => gameId && act(() => api.toggleTeams(gameId)),
     sendMessage: async (text: string) => {
       if (!gameId || !text.trim()) return;
       const { message } = await api.sendMessage(gameId, text);

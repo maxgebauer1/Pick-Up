@@ -55,6 +55,7 @@ async function initDb() {
     max_players INTEGER NOT NULL,
     skill TEXT NOT NULL,
     min_age INTEGER DEFAULT 0,
+    teams_enabled INTEGER DEFAULT 0,
     creator_id TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (creator_id) REFERENCES users (id)
@@ -64,6 +65,7 @@ async function initDb() {
     game_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'joined',
+    team TEXT,
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (game_id, user_id)
   )`);
@@ -100,6 +102,18 @@ async function initDb() {
   await run(`CREATE INDEX IF NOT EXISTS idx_messages_game ON messages(game_id, created_at)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_games_starts ON games(starts_at)`);
   await run(`CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)`);
+
+  // Migrations for columns added after the first release (teams). Adds the
+  // column only when an older pickup.db is missing it.
+  await addColumn('games', 'teams_enabled', 'INTEGER DEFAULT 0');
+  await addColumn('participants', 'team', 'TEXT');
+}
+
+async function addColumn(table, col, def) {
+  const cols = await all(`PRAGMA table_info(${table})`);
+  if (!cols.some((c) => c.name === col)) {
+    await run(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +164,7 @@ async function serializeGame(gameId) {
   const g = await get('SELECT * FROM games WHERE id = ?', [gameId]);
   if (!g) return null;
   const parts = await all(
-    `SELECT p.status, p.joined_at, u.id, u.name
+    `SELECT p.status, p.team, p.joined_at, u.id, u.name
      FROM participants p JOIN users u ON u.id = p.user_id
      WHERE p.game_id = ? ORDER BY p.joined_at ASC`,
     [gameId]
@@ -171,10 +185,12 @@ async function serializeGame(gameId) {
     maxPlayers: g.max_players,
     skill: g.skill,
     minAge: g.min_age,
+    teamsEnabled: !!g.teams_enabled,
     creatorId: g.creator_id,
     participants: parts.map((p) => ({
       player: playerOf({ id: p.id, name: p.name }),
       status: p.status,
+      team: p.team || null,
       isHost: p.id === g.creator_id,
     })),
     messages: msgs.map((m) => ({
@@ -202,7 +218,7 @@ async function serializeGameList({ sport, skill } = {}) {
   const ids = gameRows.map((g) => g.id);
   const placeholders = ids.map(() => '?').join(',');
   const partRows = await all(
-    `SELECT p.game_id, p.status, p.joined_at, u.id, u.name
+    `SELECT p.game_id, p.status, p.team, p.joined_at, u.id, u.name
      FROM participants p JOIN users u ON u.id = p.user_id
      WHERE p.game_id IN (${placeholders}) ORDER BY p.joined_at ASC`,
     ids
@@ -220,10 +236,12 @@ async function serializeGameList({ sport, skill } = {}) {
     maxPlayers: g.max_players,
     skill: g.skill,
     minAge: g.min_age,
+    teamsEnabled: !!g.teams_enabled,
     creatorId: g.creator_id,
     participants: (partsByGame[g.id] || []).map((p) => ({
       player: playerOf({ id: p.id, name: p.name }),
       status: p.status,
+      team: p.team || null,
       isHost: p.id === g.creator_id,
     })),
     messages: [], // list view never renders chat; detail endpoint fetches it
@@ -311,15 +329,15 @@ app.get('/api/games/:id', async (req, res) => {
 });
 
 app.post('/api/games', authMiddleware, async (req, res) => {
-  const { sport, title, place, startsAt, maxPlayers, skill, minAge, distanceMi } = req.body;
+  const { sport, title, place, startsAt, maxPlayers, skill, minAge, distanceMi, teamsEnabled } = req.body;
   if (!sport || !title || !place || !startsAt || !maxPlayers || !skill) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   const id = uuidv4();
   await run(
-    `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, creator_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, sport, title, place, distanceMi || 0, startsAt, maxPlayers, skill, minAge || 0, req.user.id]
+    `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, teams_enabled, creator_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, sport, title, place, distanceMi || 0, startsAt, maxPlayers, skill, minAge || 0, teamsEnabled ? 1 : 0, req.user.id]
   );
   // creator is auto-confirmed as host
   await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [id, req.user.id, 'confirmed']);
@@ -383,6 +401,63 @@ async function setStatus(req, res, status) {
 }
 app.post('/api/games/:id/confirm', authMiddleware, (req, res) => setStatus(req, res, 'confirmed'));
 app.post('/api/games/:id/checkin', authMiddleware, (req, res) => setStatus(req, res, 'checked-in'));
+
+// ---------------------------------------------------------------------------
+// Teams — creators toggle it per game; players pick their own side, or the
+// host shuffles everyone into two random sides.
+// ---------------------------------------------------------------------------
+
+// A player picks (or clears) their own team. team must be 'a', 'b', or null.
+app.post('/api/games/:id/team', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const { team } = req.body;
+  if (team !== 'a' && team !== 'b' && team !== null) {
+    return res.status(400).json({ error: 'Invalid team' });
+  }
+  const g = await get('SELECT teams_enabled FROM games WHERE id = ?', [gameId]);
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  if (!g.teams_enabled) return res.status(400).json({ error: 'Teams are off for this game' });
+  const me = await get('SELECT status FROM participants WHERE game_id = ? AND user_id = ?', [gameId, req.user.id]);
+  if (!me) return res.status(400).json({ error: 'Not in this game' });
+  if (me.status === 'waitlisted') return res.status(400).json({ error: 'Waitlisted players can\'t pick a team yet' });
+  await run('UPDATE participants SET team = ? WHERE game_id = ? AND user_id = ?', [team, gameId, req.user.id]);
+  res.json({ game: await emitGameUpdate(gameId) });
+});
+
+// Host only: randomly split the active roster into two even sides.
+app.post('/api/games/:id/teams/shuffle', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const g = await get('SELECT teams_enabled, creator_id FROM games WHERE id = ?', [gameId]);
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  if (g.creator_id !== req.user.id) return res.status(403).json({ error: 'Only the host can shuffle teams' });
+  if (!g.teams_enabled) return res.status(400).json({ error: 'Teams are off for this game' });
+
+  const active = await all(
+    "SELECT user_id FROM participants WHERE game_id = ? AND status != 'waitlisted'",
+    [gameId]
+  );
+  // Fisher-Yates shuffle, then deal out alternating sides so they stay even.
+  for (let i = active.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [active[i], active[j]] = [active[j], active[i]];
+  }
+  for (let i = 0; i < active.length; i++) {
+    await run('UPDATE participants SET team = ? WHERE game_id = ? AND user_id = ?', [i % 2 === 0 ? 'a' : 'b', gameId, active[i].user_id]);
+  }
+  res.json({ game: await emitGameUpdate(gameId) });
+});
+
+// Host only: turn teams on or off. Turning off clears every assignment.
+app.post('/api/games/:id/teams/toggle', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const g = await get('SELECT teams_enabled, creator_id FROM games WHERE id = ?', [gameId]);
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  if (g.creator_id !== req.user.id) return res.status(403).json({ error: 'Only the host can change this' });
+  const next = g.teams_enabled ? 0 : 1;
+  await run('UPDATE games SET teams_enabled = ? WHERE id = ?', [next, gameId]);
+  if (!next) await run('UPDATE participants SET team = NULL WHERE game_id = ?', [gameId]);
+  res.json({ game: await emitGameUpdate(gameId) });
+});
 
 // ---------------------------------------------------------------------------
 // Chat (posted over REST, broadcast over socket)
@@ -494,8 +569,8 @@ async function seedIfEmpty() {
 
   const hrs = (h) => new Date(Date.now() + h * 3600_000).toISOString();
   const games = [
-    { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 18, creator: 'u-jordan',
-      roster: [['u-jordan', 'confirmed'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed'], ['u-luis', 'confirmed'], ['u-cam', 'confirmed'], ['u-andre', 'joined'], ['u-dee', 'joined'], ['u-ray', 'waitlisted']],
+    { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 18, creator: 'u-jordan', teams: true,
+      roster: [['u-jordan', 'confirmed', 'a'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed', 'a'], ['u-luis', 'confirmed', 'b'], ['u-cam', 'confirmed', 'b'], ['u-andre', 'joined'], ['u-dee', 'joined'], ['u-ray', 'waitlisted']],
       chat: [['u-jordan', 'Bringing an extra ball, courts get busy 👀'], ['u-andre', 'Running 5 min late, save me a spot!']] },
     { id: 'g-soccer', sport: 'soccer', title: 'Pickup Soccer', place: 'Mission Bay Turf', distance: 1.2, starts: hrs(30), max: 18, skill: 'all', minAge: 0, creator: 'u-tam',
       roster: [['u-tam', 'joined'], ['u-luis', 'joined'], ['u-nina', 'joined'], ['u-mia', 'joined']],
@@ -510,15 +585,15 @@ async function seedIfEmpty() {
 
   for (const g of games) {
     await run(
-      `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, creator_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [g.id, g.sport, g.title, g.place, g.distance, g.starts, g.max, g.skill, g.minAge, g.creator]
+      `INSERT INTO games (id, sport, title, place, distance_mi, starts_at, max_players, skill, min_age, teams_enabled, creator_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [g.id, g.sport, g.title, g.place, g.distance, g.starts, g.max, g.skill, g.minAge, g.teams ? 1 : 0, g.creator]
     );
     const seen = new Set();
-    for (const [uid, status] of g.roster) {
+    for (const [uid, status, team] of g.roster) {
       if (seen.has(uid)) continue;
       seen.add(uid);
-      await run('INSERT INTO participants (game_id, user_id, status) VALUES (?, ?, ?)', [g.id, uid, status]);
+      await run('INSERT INTO participants (game_id, user_id, status, team) VALUES (?, ?, ?, ?)', [g.id, uid, status, team || null]);
     }
     for (const [uid, text] of g.chat) {
       await run('INSERT INTO messages (id, game_id, user_id, text) VALUES (?, ?, ?, ?)', [uuidv4(), g.id, uid, text]);

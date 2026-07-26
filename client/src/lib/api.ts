@@ -1,4 +1,4 @@
-import { Game, User, Sport, SkillLevel, ChatMessage } from '../types';
+import { Game, User, Sport, SkillLevel, ChatMessage, TeamId } from '../types';
 
 // Same origin in production (the Node server serves the build); localhost in dev.
 export const API_BASE =
@@ -43,6 +43,7 @@ export interface CreateGamePayload {
   skill: SkillLevel;
   minAge: number;
   distanceMi?: number;
+  teamsEnabled?: boolean;
 }
 
 export const api = {
@@ -76,6 +77,12 @@ export const api = {
   leave: (id: string) => request<{ game: Game }>(`/api/games/${id}/leave`, { method: 'POST' }),
   confirm: (id: string) => request<{ game: Game }>(`/api/games/${id}/confirm`, { method: 'POST' }),
   checkin: (id: string) => request<{ game: Game }>(`/api/games/${id}/checkin`, { method: 'POST' }),
+
+  // teams
+  setTeam: (id: string, team: TeamId | null) =>
+    request<{ game: Game }>(`/api/games/${id}/team`, { method: 'POST', body: JSON.stringify({ team }) }),
+  shuffleTeams: (id: string) => request<{ game: Game }>(`/api/games/${id}/teams/shuffle`, { method: 'POST' }),
+  toggleTeams: (id: string) => request<{ game: Game }>(`/api/games/${id}/teams/toggle`, { method: 'POST' }),
 
   // chat
   sendMessage: (id: string, text: string) =>

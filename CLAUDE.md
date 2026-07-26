@@ -15,10 +15,14 @@ making changes.
 - Four sports only: **basketball, soccer, baseball, flag football (5v5)**.
 - Create a game, browse nearby games, join / leave, see if a game is full.
 - **Skill level** per game: `casual`, `intermediate`, `competitive`, `all`.
-- **Minimum age** per game: `0` (all ages), or `16` / `18` / `21` (or custom).
+- **Minimum age** per game: `0` (all ages), or `18` / `35` / `45` (or custom).
 - **Lobby chat** (realtime).
 - **Show-up system:** join → (reminder) → confirm → check-in, with a **waitlist**
   that auto-promotes the next person when a spot opens.
+- **Teams (optional, per game):** the host toggles it on. When on, players pick
+  their own side (`a` / `b`) or the host shuffles the active roster into two even
+  random sides. Turning it off clears every assignment. Team colors are the blue
+  and red from the logo bar.
 - **Web Push** reminders ("still coming?"). SMS is intentionally *not* built yet
   but the notification layer is channel-agnostic so it can be added later.
 
@@ -33,6 +37,13 @@ friends & friend requests, "find similar friends", player reports.
 Warm, social, clean. Light theme, one confident green accent. Chosen to look
 hand-made, **not** AI-generated (no purple gradients, no emoji section headers,
 no heavy glow shadows; hairline borders + generous spacing instead).
+
+- **Logo:** the "PU / Pick Up Sports" mark — dark rounded square, white italic
+  "PU", four-color bar (blue `#1d4ed8`, red `#d92d3a`, amber `#f5a623`, green
+  `#17a34a`). Lives in `client/src/components/Logo.tsx` and shows on Login. Those
+  four colors are reused as **per-sport accents** (basketball amber, soccer green,
+  baseball blue, flag football red) via `SPORTS[].color` / `sportMeta()`.
+- **Voice:** copy is plain and short. No em-dashes, no emoji, no marketing lines.
 
 - **Font:** Plus Jakarta Sans (loaded via Google Fonts `@import` in `index.css`).
 - **Tokens** live in `client/tailwind.config.js`:
@@ -85,12 +96,16 @@ Monorepo: `client/` (React) + `server/` (Node). Same stack as the original repo.
 - DB file `server/pickup.db` (gitignored). **Seeds sample users + 4 games on
   first run** if the users table is empty. Demo login: `mia@demo.app` / `pickup123`
   (all seed users share that password).
-- Tables: `users`, `games`, `participants(status)`, `messages`,
-  `push_subscriptions`, `reminders_sent`.
+- Tables: `users`, `games`, `participants(status, team)`, `messages`,
+  `push_subscriptions`, `reminders_sent`. `games.teams_enabled` and
+  `participants.team` are added via a small `addColumn` migration in `initDb` so
+  older `pickup.db` files pick them up.
 - `participants.status` ∈ `joined | confirmed | checked-in | waitlisted` — this
   is the heart of the show-up loop. `activeCount` ignores waitlisted; join sets
   `waitlisted` when full; leave auto-promotes the earliest waitlisted player and
-  pushes them "You're in!".
+  pushes them "You're in".
+- `participants.team` ∈ `a | b | null` — only meaningful when the game's
+  `teams_enabled` is on (see Teams in product scope).
 - Realtime: socket rooms keyed by `gameId`. Server emits `game-updated` and
   `new-message`; client dedupes messages by id.
 - **Web Push:** VAPID keys auto-generated to `server/.vapid.json` (gitignored) or
@@ -109,6 +124,9 @@ GET  /api/games/:id                             -> {game}
 POST /api/games            (auth)               -> {game}
 DELETE /api/games/:id      (auth, host only)
 POST /api/games/:id/join|leave|confirm|checkin (auth) -> {game}
+POST /api/games/:id/team {team:'a'|'b'|null} (auth)   -> {game}  (self-pick; teams must be on)
+POST /api/games/:id/teams/shuffle (auth, host only)   -> {game}  (even random split)
+POST /api/games/:id/teams/toggle  (auth, host only)   -> {game}  (on/off; off clears assignments)
 POST /api/games/:id/messages {text} (auth)      -> {message}  (also emits socket)
 GET  /api/push/vapid                            -> {publicKey}
 POST /api/push/subscribe {subscription} (auth)  -> {ok}

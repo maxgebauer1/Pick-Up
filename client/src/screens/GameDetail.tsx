@@ -29,7 +29,6 @@ export const GameDetail: React.FC = () => {
   const { user } = useAuth();
   const { game, loading, error, join, leave, confirm, checkIn, sendMessage, setTeam, shuffleTeams, toggleTeams } =
     useGameDetail(gameId);
-  const [draft, setDraft] = useState('');
 
   if (loading) {
     return <div className="mx-auto max-w-md px-4 pt-24 text-center text-muted">Loading…</div>;
@@ -63,12 +62,6 @@ export const GameDetail: React.FC = () => {
     phase === 'upcoming'
       ? `${activeCount(game)} of ${game.maxPlayers} going`
       : `${confirmedCount(game)} of ${activeCount(game)} confirmed`;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(draft);
-    setDraft('');
-  };
 
   return (
     <div className="mx-auto max-w-md min-h-screen flex flex-col">
@@ -288,22 +281,7 @@ export const GameDetail: React.FC = () => {
                 </div>
               );
             })}
-            <form onSubmit={submit} className="flex items-center gap-2 bg-surface border border-line rounded-pill py-1.5 pl-4 pr-1.5 mt-1">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Message the group…"
-                className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
-              />
-              <button
-                type="submit"
-                className="w-8 h-8 rounded-pill bg-green flex items-center justify-center shrink-0 disabled:opacity-40"
-                disabled={!draft.trim()}
-                aria-label="Send"
-              >
-                <Send size={15} className="text-white" />
-              </button>
-            </form>
+            <ChatComposer onSend={sendMessage} />
           </div>
         </section>
       </div>
@@ -358,5 +336,36 @@ const PlayerRow = React.memo(function PlayerRow({
       showStatus && <StatusPill status={p.status} />
     )}
   </div>
+  );
+});
+
+// Holds its own draft state so typing re-renders only the composer, not the
+// whole GameDetail screen (which would otherwise recompute the roster/teams
+// groupings on every keystroke).
+const ChatComposer = React.memo(function ChatComposer({ onSend }: { onSend: (text: string) => void }) {
+  const [draft, setDraft] = useState('');
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    onSend(draft);
+    setDraft('');
+  };
+  return (
+    <form onSubmit={submit} className="flex items-center gap-2 bg-surface border border-line rounded-pill py-1.5 pl-4 pr-1.5 mt-1">
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Message the group…"
+        className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-faint"
+      />
+      <button
+        type="submit"
+        className="w-8 h-8 rounded-pill bg-green flex items-center justify-center shrink-0 disabled:opacity-40"
+        disabled={!draft.trim()}
+        aria-label="Send"
+      >
+        <Send size={15} className="text-white" />
+      </button>
+    </form>
   );
 });

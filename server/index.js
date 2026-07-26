@@ -204,7 +204,7 @@ async function serializeGame(gameId) {
 
 // List serializer for GET /api/games: two queries total regardless of how many
 // games match (vs serializeGame's 3-queries-per-game fan-out), filters in SQL,
-// and never fetches chat messages — the list/feed never renders them.
+// and never fetches chat messages, since the list/feed never renders them.
 async function serializeGameList({ sport, skill } = {}) {
   const where = [];
   const params = [];
@@ -403,7 +403,7 @@ app.post('/api/games/:id/confirm', authMiddleware, (req, res) => setStatus(req, 
 app.post('/api/games/:id/checkin', authMiddleware, (req, res) => setStatus(req, res, 'checked-in'));
 
 // ---------------------------------------------------------------------------
-// Teams — creators toggle it per game; players pick their own side, or the
+// Teams: creators toggle it per game; players pick their own side, or the
 // host shuffles everyone into two random sides.
 // ---------------------------------------------------------------------------
 
@@ -441,8 +441,20 @@ app.post('/api/games/:id/teams/shuffle', authMiddleware, async (req, res) => {
     const j = Math.floor(Math.random() * (i + 1));
     [active[i], active[j]] = [active[j], active[i]];
   }
-  for (let i = 0; i < active.length; i++) {
-    await run('UPDATE participants SET team = ? WHERE game_id = ? AND user_id = ?', [i % 2 === 0 ? 'a' : 'b', gameId, active[i].user_id]);
+  // Two batched UPDATEs (one per side) instead of one write per player.
+  const aIds = active.filter((_, i) => i % 2 === 0).map((p) => p.user_id);
+  const bIds = active.filter((_, i) => i % 2 === 1).map((p) => p.user_id);
+  if (aIds.length) {
+    await run(
+      `UPDATE participants SET team = 'a' WHERE game_id = ? AND user_id IN (${aIds.map(() => '?').join(',')})`,
+      [gameId, ...aIds]
+    );
+  }
+  if (bIds.length) {
+    await run(
+      `UPDATE participants SET team = 'b' WHERE game_id = ? AND user_id IN (${bIds.map(() => '?').join(',')})`,
+      [gameId, ...bIds]
+    );
   }
   res.json({ game: await emitGameUpdate(gameId) });
 });
@@ -498,7 +510,7 @@ app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Reminder scheduler — sends a "still coming?" push a few hours before a game
+// Reminder scheduler. Sends a "still coming?" push a few hours before a game
 // ---------------------------------------------------------------------------
 async function runReminderSweep() {
   try {
@@ -513,7 +525,7 @@ async function runReminderSweep() {
       [nowIso, maxIso]
     );
     for (const g of games) {
-      // Pending 'joined' players not yet reminded — one LEFT JOIN instead of a
+      // Pending 'joined' players not yet reminded, via one LEFT JOIN instead of a
       // per-participant existence query.
       const pending = await all(
         `SELECT p.user_id FROM participants p
@@ -537,7 +549,7 @@ async function runReminderSweep() {
 }
 
 // ---------------------------------------------------------------------------
-// Socket.io — rooms for live game + chat updates (read-only broadcast channel)
+// Socket.io rooms for live game + chat updates (read-only broadcast channel)
 // ---------------------------------------------------------------------------
 io.on('connection', (socket) => {
   socket.on('join-game', (gameId) => gameId && socket.join(gameId));

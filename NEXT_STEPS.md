@@ -1,29 +1,54 @@
 # Pick Up — where I left off / next steps
 
-_Last updated: 2026-07-25_
+_Last updated: 2026-07-27_
 
-## Status: ✅ finished product built, tested, pushed
+## Status: shipped to main
 
-- **PR #1:** https://github.com/maxgebauer1/Pick-Up/pull/1 (branch `claude/app-redesign-plan-wbo2ov` → `main`) — **not merged yet.**
-- Full-stack app works end-to-end: auth, browse, create, join/leave, confirm,
-  check-in, waitlist, lobby chat, Web Push reminders. Verified against a live
-  server with data persisted to SQLite.
+- `main` now holds the full app: the Turf redesign, real backend (auth,
+  browse, create, join/leave, confirm, check-in, waitlist, lobby chat, Web
+  Push), plus this session's changes below. It was a clean fast-forward, so
+  `main` is the source of truth now.
+- The old **PR #1** (`claude/app-redesign-plan-wbo2ov` -> `main`) is
+  superseded. `main` already contains everything it had, so that PR can just
+  be closed.
+- Work branch for this session: `claude/open-app-bkbege` (also on `main`).
 - Architecture + how-to-run details live in **`CLAUDE.md`**.
-- Demo login: `mia@demo.app` / `pickup123`.
+- Demo login: `mia@demo.app` / `pickup123` (all seed users share that password).
+
+## Done this session (2026-07-27)
+
+1. **Logo.** New PU mark in `client/src/components/Logo.tsx` (dark square,
+   white "PU", the four-color bar) on the Login screen.
+2. **Logo colorways.** The four bar colors are now the per-sport accents:
+   basketball amber, soccer green, baseball blue, flag football red. See
+   `SPORTS[].color` / `sportMeta()` in `client/src/types.ts`, used on the game
+   tags in `GameCard` and `GameDetail`.
+3. **Slogan** is now "Always on" (Login).
+4. **Ages** are 18+ / 35+ / 45+ (plus All ages). `AGE_PRESETS` in `types.ts`.
+5. **Plainer copy.** Dropped the em-dashes, emoji, and marketing lines from the
+   screens, push notifications, and page metadata.
+6. **Teams (new feature).** Hosts toggle it per game (at create time and on the
+   game screen). When on, players pick their own side or the host shuffles the
+   active roster into two even random sides. Turning it off clears every
+   assignment. Colors are the blue/red from the logo bar.
+   - Server: `games.teams_enabled`, `participants.team`, a small `addColumn`
+     migration, and routes `POST /api/games/:id/team|teams/shuffle|teams/toggle`.
+   - Client: Team A/B columns + "pick your side" in `GameDetail`, the toggle in
+     `CreateGame`, wiring in `store.tsx` / `lib/api.ts`.
+   - The seeded basketball game ships with teams on so it shows up right away.
 
 ## Pick up here — decide what's next
 
-1. **Merge PR #1** (if you're happy with it).
-2. **Deploy it.** ⚠️ The API + push need a long-running Node host (Render /
-   Railway / Fly / a VM) — NOT Vercel serverless (the reminder scheduler uses
-   setInterval). The static client can go on Vercel; the server can't.
-3. **SMS reminders (Twilio)** as a 2nd channel — notification layer is already
-   channel-agnostic, so this slots in. Extra motivation: iOS Web Push only works
-   once the app is added to the Home Screen.
-4. **Smaller polish, optional:**
+1. **Deploy it.** The API + push need a long-running Node host (Render /
+   Railway / Fly / a VM), NOT Vercel serverless, because the reminder scheduler
+   uses setInterval. The static client can go on Vercel; the server can't.
+2. **SMS reminders (Twilio)** as a second channel. The notification layer is
+   already channel-agnostic, so it slots in. iOS Web Push only works once the
+   app is added to the Home Screen, so SMS is the fallback.
+3. **Smaller polish, optional:**
    - Real geolocation / distance (currently seed-only; user-made games show no distance)
    - Edit / cancel-game button (delete endpoint already exists, no UI yet)
-   - Move SQLite → Postgres before real scale
+   - Move SQLite to Postgres before real scale
 
 ## To run it again locally
 ```bash
@@ -33,5 +58,5 @@ node server/index.js     # http://localhost:5001
 ```
 
 ## How to restart with me
-Just say e.g. "merge the PR", "help me deploy the server", or "start on SMS
-reminders." Everything's committed on `claude/app-redesign-plan-wbo2ov`.
+Just say e.g. "help me deploy the server", "start on SMS reminders", or "add an
+edit-game screen." Everything is committed on `main`.

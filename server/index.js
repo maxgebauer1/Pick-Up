@@ -571,7 +571,7 @@ async function seedIfEmpty() {
   const games = [
     { id: 'g-hoops', sport: 'basketball', title: 'Saturday Morning Run', place: 'Venice Beach Courts', distance: 2.1, starts: hrs(3), max: 10, skill: 'intermediate', minAge: 18, creator: 'u-jordan', teams: true,
       roster: [['u-jordan', 'confirmed', 'a'], ['u-mia', 'confirmed'], ['u-tam', 'confirmed', 'a'], ['u-luis', 'confirmed', 'b'], ['u-cam', 'confirmed', 'b'], ['u-andre', 'joined'], ['u-dee', 'joined'], ['u-ray', 'waitlisted']],
-      chat: [['u-jordan', 'Bringing an extra ball, courts get busy 👀'], ['u-andre', 'Running 5 min late, save me a spot!']] },
+      chat: [['u-jordan', 'Bringing an extra ball, courts get busy'], ['u-andre', 'Running 5 min late, save me a spot!']] },
     { id: 'g-soccer', sport: 'soccer', title: 'Pickup Soccer', place: 'Mission Bay Turf', distance: 1.2, starts: hrs(30), max: 18, skill: 'all', minAge: 0, creator: 'u-tam',
       roster: [['u-tam', 'joined'], ['u-luis', 'joined'], ['u-nina', 'joined'], ['u-mia', 'joined']],
       chat: [['u-tam', 'Pinnies provided, wear dark if you can']] },

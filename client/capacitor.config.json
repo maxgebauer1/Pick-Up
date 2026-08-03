@@ -1,0 +1,8 @@
+{
+  "appId": "com.pickup.app",
+  "appName": "Pick Up",
+  "webDir": "build",
+  "ios": {
+    "contentInset": "always"
+  }
+}

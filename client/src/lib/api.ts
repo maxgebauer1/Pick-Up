@@ -1,8 +1,20 @@
+import { Capacitor } from '@capacitor/core';
 import { Game, User, Sport, SkillLevel, ChatMessage, TeamId } from '../types';
 
-// Same origin in production (the Node server serves the build); localhost in dev.
+// Where the API/socket server lives, resolved per runtime:
+// - REACT_APP_API_URL wins if set (point at a deployed backend).
+// - Native app (Capacitor iOS shell): the app is served from capacitor://,
+//   so "same origin" can't reach Node. Talk to localhost:5001, which inside
+//   the iOS Simulator is the Mac running the server.
+// - Web production: same origin (the Node server serves the build).
+// - Web dev: localhost:5001.
 export const API_BASE =
-  process.env.REACT_APP_API_URL ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001');
+  process.env.REACT_APP_API_URL ??
+  (Capacitor.isNativePlatform()
+    ? 'http://localhost:5001'
+    : process.env.NODE_ENV === 'production'
+    ? ''
+    : 'http://localhost:5001');
 
 const TOKEN_KEY = 'pu_token';
 

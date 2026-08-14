@@ -39,13 +39,20 @@ _Last updated: 2026-07-27_
 
 ## Pick up here — decide what's next
 
-1. **Deploy it.** The API + push need a long-running Node host (Render /
+1. **Review and edit landing page.** Lives in `landing/` (index.html,
+   style.css, script.js) — static, no build step. Most headline/subhead copy
+   is intentionally left as bracketed placeholder text to fill in. Two signup
+   forms (email + phone) validate and work but aren't wired to a real backend
+   yet (`WAITLIST_ENDPOINT` in `script.js`). The basketball/baseball art is
+   custom SVG illustration, not photos — no AI image generation was available
+   when this was built.
+2. **Deploy it.** The API + push need a long-running Node host (Render /
    Railway / Fly / a VM), NOT Vercel serverless, because the reminder scheduler
    uses setInterval. The static client can go on Vercel; the server can't.
-2. **SMS reminders (Twilio)** as a second channel. The notification layer is
+3. **SMS reminders (Twilio)** as a second channel. The notification layer is
    already channel-agnostic, so it slots in. iOS Web Push only works once the
    app is added to the Home Screen, so SMS is the fallback.
-3. **Smaller polish, optional:**
+4. **Smaller polish, optional:**
    - Real geolocation / distance (currently seed-only; user-made games show no distance)
    - Edit / cancel-game button (delete endpoint already exists, no UI yet)
    - Move SQLite to Postgres before real scale

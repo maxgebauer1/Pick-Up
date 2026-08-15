@@ -443,7 +443,7 @@ img { max-width: 100%; display: block; }
   gap: 16px;
 }
 @media (min-width: 640px) {
-  .steps { grid-template-columns: repeat(3, 1fr); }
+  .steps { grid-template-columns: repeat(2, 1fr); }
 }
 
 .step {
@@ -452,6 +452,11 @@ img { max-width: 100%; display: block; }
   border-radius: var(--radius-card);
   padding: 22px;
   box-shadow: var(--shadow-card);
+}
+
+.step.why-reason--main {
+  background: var(--green-soft);
+  border-color: transparent;
 }
 
 .step-num {

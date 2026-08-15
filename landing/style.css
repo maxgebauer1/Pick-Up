@@ -537,3 +537,6 @@ footer p {
   color: var(--muted-text);
   font-size: 0.85rem;
 }
+
+.footer-link { color: var(--muted-text); text-decoration: underline; }
+.footer-link:hover { color: var(--ink); }

@@ -52,12 +52,12 @@
   // ---------------------------------------------------------------------
   // Signup forms (email + phone)
   //
-  // No backend is wired up yet. Submissions validate client-side and are
-  // cached in localStorage so the UI has something real to show. Point
-  // WAITLIST_ENDPOINT at a real endpoint (e.g. POST /api/waitlist) to go
-  // live — the fetch call below already matches that shape.
+  // Submissions POST to /api/waitlist (a Vercel serverless function, see
+  // landing/api/waitlist.js), which sends a confirmation email (Resend)
+  // and text (Twilio). They're also cached in localStorage so the UI has
+  // something to show even if the endpoint is unreachable.
   // ---------------------------------------------------------------------
-  var WAITLIST_ENDPOINT = null; // e.g. "https://your-api.example.com/api/waitlist"
+  var WAITLIST_ENDPOINT = "/api/waitlist";
 
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

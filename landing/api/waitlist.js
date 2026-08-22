@@ -9,8 +9,10 @@
 //   RESEND_API_KEY
 //   RESEND_FROM            e.g. "Pick Up <hello@yourdomain.com>"
 //                           (falls back to Resend's shared test sender)
-//   TWILIO_ACCOUNT_SID
-//   TWILIO_AUTH_TOKEN
+//   TWILIO_ACCOUNT_SID     Account SID (starts "AC..."), from the Twilio console
+//   TWILIO_API_KEY_SID     API Key SID (starts "SK...") — used for auth instead
+//                           of the raw Auth Token
+//   TWILIO_API_KEY_SECRET
 //   TWILIO_FROM_NUMBER     E.164 format, e.g. "+15551234567"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,10 +55,13 @@ async function sendConfirmationEmail(email) {
 }
 
 async function sendConfirmationText(phone) {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
   const from = process.env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) throw new Error("Twilio env vars not set");
+  if (!accountSid || !apiKeySid || !apiKeySecret || !from) {
+    throw new Error("Twilio env vars not set");
+  }
 
   // Assumes a US/E.164-able 10-digit input, matching the client's
   // isValidPhone check. Add proper country-code handling before opening
@@ -71,11 +76,12 @@ async function sendConfirmationText(phone) {
   });
 
   const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
     {
       method: "POST",
       headers: {
-        Authorization: "Basic " + Buffer.from(`${sid}:${token}`).toString("base64"),
+        Authorization:
+          "Basic " + Buffer.from(`${apiKeySid}:${apiKeySecret}`).toString("base64"),
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: params.toString(),

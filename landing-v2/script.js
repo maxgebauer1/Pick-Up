@@ -136,10 +136,7 @@
             /* localStorage unavailable — non-fatal */
           }
 
-          form.classList.add("is-submitted");
-          successEl.classList.add("is-visible");
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Get early access";
+          window.location.href = "https://api.pickupsports.us/thanks";
         });
     });
   }

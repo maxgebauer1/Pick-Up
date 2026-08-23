@@ -69,7 +69,7 @@ async function sendConfirmationEmail(email) {
         '<p style="margin-top:32px; padding-top:16px; border-top:1px solid #e4eae4; font-size:12px; color:#6d7a71;">' +
         "You're receiving this because you joined the Pick Up waitlist. " +
         '<a href="https://api.pickupsports.us/privacy" style="color:#6d7a71;">Privacy Policy</a>' +
-        // TODO: add mailing address here once provided (CAN-SPAM requires a valid physical postal address in commercial email footers)
+        '<br>Pick Up, 1921 New Garden Rd APT J105, Greensboro, NC 27410' +
         "</p>" +
         "</div>",
     }),

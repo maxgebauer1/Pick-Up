@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're on the list — Pick Up</title>
+<style>
+  :root {
+    --bg: #f4f6f3;
+    --ink: #1b241f;
+    --muted-text: #5f6b63;
+    --green: #1f7a4d;
+    --green-deep: #186640;
+    --line: #e4eae4;
+    --blue: #1d4ed8;
+    --red: #d92d3a;
+    --mark-amber: #f5a623;
+    --mark-green: #17a34a;
+    --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    max-width: 420px;
+    width: 100%;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .mark {
+    --size: 72px;
+    width: var(--size);
+    height: var(--size);
+    border-radius: calc(var(--size) * 0.22);
+    background: #14181c;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: calc(var(--size) * 0.13);
+    margin: 0 auto 28px;
+  }
+  .mark-letters {
+    color: #fff;
+    font-weight: 800;
+    font-style: italic;
+    font-size: calc(var(--size) * 0.42);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .mark-bar { display: flex; gap: calc(var(--size) * 0.03); width: 100%; }
+  .mark-bar span { flex: 1; height: max(2px, calc(var(--size) * 0.045)); border-radius: 999px; }
+  .mark-bar span:nth-child(1) { background: var(--blue); }
+  .mark-bar span:nth-child(2) { background: var(--red); }
+  .mark-bar span:nth-child(3) { background: var(--mark-amber); }
+  .mark-bar span:nth-child(4) { background: var(--mark-green); }
+
+  h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px; }
+  p { font-size: 1.02rem; color: var(--muted-text); line-height: 1.55; margin: 0 0 8px; }
+
+  .actions { margin-top: 32px; display: flex; flex-direction: column; gap: 10px; }
+  button.btn-share {
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--green);
+    border: none;
+    border-radius: 9999px;
+    padding: 14px 20px;
+    cursor: pointer;
+  }
+  button.btn-share:active { background: var(--green-deep); }
+  .share-note { font-size: 0.82rem; color: var(--muted-text); margin-top: 4px; }
+
+  footer { margin-top: 40px; font-size: 0.78rem; color: var(--muted-text); }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="mark" aria-hidden="true">
+    <span class="mark-letters">PU</span>
+    <span class="mark-bar"><span></span><span></span><span></span><span></span></span>
+  </div>
+
+  <h1>Thanks — you're on the list</h1>
+  <p>We'll text you the moment Pick Up is live and ready for games.</p>
+  <p>In the meantime, feel free to share it with friends who'd want in.</p>
+
+  <div class="actions">
+    <button class="btn-share" id="share-btn" type="button">Share with a friend</button>
+    <p class="share-note" id="share-note"></p>
+  </div>
+
+  <footer>
+    <a href="/privacy">Privacy Policy</a>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    // Meta Pixel goes here once the ad account is set up — this page is the
+    // single conversion destination for every landing variant, so the Pixel
+    // (or a "Lead"/"CompleteRegistration" event fire) only needs to be added
+    // once, here, rather than duplicated across a/b/c/d.pickupsports.us.
+
+    var shareUrl = document.referrer && document.referrer.indexOf("pickupsports.us") !== -1
+      ? document.referrer
+      : "https://a.pickupsports.us/";
+    var shareText = "I just joined the waitlist for Pick Up — pickup sports games near you, no league, no commitment. Join me:";
+
+    var btn = document.getElementById("share-btn");
+    var note = document.getElementById("share-note");
+
+    btn.addEventListener("click", function () {
+      if (navigator.share) {
+        navigator.share({ title: "Pick Up", text: shareText, url: shareUrl }).catch(function () {});
+        return;
+      }
+      var toCopy = shareText + " " + shareUrl;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(toCopy).then(function () {
+          note.textContent = "Link copied — go ahead and paste it anywhere.";
+        }).catch(function () {
+          note.textContent = shareUrl;
+        });
+      } else {
+        note.textContent = shareUrl;
+      }
+    });
+  })();
+</script>
+</body>
+</html>

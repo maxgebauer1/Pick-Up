@@ -17,6 +17,11 @@
 //   ALLOWED_ORIGINS        comma-separated list of origins allowed to call
 //                           this endpoint (CORS), e.g.
 //                           "https://a.pickupsports.us,https://b.pickupsports.us"
+//   DATABASE_URL           Postgres connection string (injected automatically
+//                           by the Neon integration once connected to this
+//                           project in the Vercel dashboard)
+
+const { neon } = require("@neondatabase/serverless");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -121,6 +126,14 @@ async function sendConfirmationText(phone) {
   }
 }
 
+async function saveSignup(email, phone, source, emailSent, smsSent) {
+  const sql = neon(process.env.DATABASE_URL);
+  await sql`
+    INSERT INTO waitlist_signups (email, phone, source, email_sent, sms_sent)
+    VALUES (${email}, ${phone}, ${source}, ${emailSent}, ${smsSent})
+  `;
+}
+
 module.exports = async function handler(req, res) {
   applyCors(req, res);
 
@@ -154,9 +167,20 @@ module.exports = async function handler(req, res) {
     console.error("waitlist sms failed:", smsResult.reason);
   }
 
+  const emailOk = emailResult.status === "fulfilled";
+  const smsOk = smsResult.status === "fulfilled";
+
+  try {
+    await saveSignup(email, phone, req.headers.origin || null, emailOk, smsOk);
+  } catch (err) {
+    // Confirmation channels already fired — don't fail the request over a
+    // storage error, but make sure it shows up in the function logs.
+    console.error("waitlist db save failed:", err);
+  }
+
   return res.status(200).json({
     ok: true,
-    email: emailResult.status === "fulfilled",
-    sms: smsResult.status === "fulfilled",
+    email: emailOk,
+    sms: smsOk,
   });
 };

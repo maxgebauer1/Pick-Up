@@ -540,3 +540,21 @@ footer p {
 
 .footer-link { color: var(--muted-text); text-decoration: underline; }
 .footer-link:hover { color: var(--ink); }
+
+.signup-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted-text);
+  text-align: left;
+}
+.signup-consent input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.signup-consent a {
+  color: inherit;
+  text-decoration: underline;
+}

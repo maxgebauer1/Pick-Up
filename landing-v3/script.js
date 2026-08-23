@@ -57,7 +57,7 @@
   // WAITLIST_ENDPOINT at a real endpoint (e.g. POST /api/waitlist) to go
   // live — the fetch call below already matches that shape.
   // ---------------------------------------------------------------------
-  var WAITLIST_ENDPOINT = null; // e.g. "https://your-api.example.com/api/waitlist"
+  var WAITLIST_ENDPOINT = "https://api.pickupsports.us/api/waitlist";
 
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

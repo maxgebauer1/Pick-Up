@@ -73,6 +73,7 @@
   function handleSubmit(form) {
     var emailInput = form.querySelector('input[name="email"]');
     var phoneInput = form.querySelector('input[name="phone"]');
+    var consentInput = form.querySelector('input[name="consent"]');
     var errorEl = form.querySelector(".signup-error");
     var successEl = form.querySelector(".signup-success");
     var submitBtn = form.querySelector(".btn-primary");
@@ -101,6 +102,11 @@
       if (!isValidPhone(phone)) {
         showError("Enter a valid phone number.");
         phoneInput.focus();
+        return;
+      }
+      if (consentInput && !consentInput.checked) {
+        showError("Please agree to receive texts and emails to join the waitlist.");
+        consentInput.focus();
         return;
       }
 

@@ -18,6 +18,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="style.css">
+
+<!-- Meta Pixel Code -->
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '28126605227003794');fbq('track', 'PageView');</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=28126605227003794&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel Code -->
 </head>
 <body>
 
@@ -48,7 +53,7 @@
         <span class="accent">Play Anywhere</span>
       </h1>
 
-      <p class="hero-sub placeholder-text">[Hero subheadline placeholder — one short line on what Pick Up does]</p>
+      <p class="hero-sub">Play local pickup games near you now. No matter when, no matter where, find games. No waiting until Sunday, no spending hours finding a league, no commitment.</p>
 
       <form class="signup" id="form-top" novalidate>
         <div class="signup-fields">
@@ -60,9 +65,13 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3h3l1.5 4.5-2 1.5a12 12 0 0 0 6 6l1.5-2 4.5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2Z"/></svg>
             <input type="tel" name="phone" placeholder="Phone number" aria-label="Phone number" autocomplete="tel" required>
           </label>
-          <button class="btn-primary" type="submit">Get early access</button>
+          <button class="btn-primary" type="submit">Join the waitlist</button>
         </div>
-        <p class="signup-note placeholder-text">[Form microcopy placeholder — e.g. privacy / launch-city note]</p>
+        <p class="signup-note">We'll only text you two things: when the app is released, and when your games are ready.</p>
+        <label class="signup-consent">
+          <input type="checkbox" name="consent" required>
+          <span>I agree to receive texts and emails from Pick Up about the waitlist. Msg &amp; data rates may apply. Reply STOP to opt out. <a href="https://api.pickupsports.us/privacy" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://api.pickupsports.us/terms" target="_blank" rel="noopener">Terms</a></span>
+        </label>
         <p class="signup-error" role="alert"></p>
         <div class="signup-success" role="status">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -77,22 +86,52 @@
     <div class="wrap">
       <div class="reveal">
         <span class="section-eyebrow">How it works</span>
-        <h2 class="section-title placeholder-text">[Section headline placeholder]</h2>
-        <p class="section-lede placeholder-text">[Short section description placeholder — one or two lines]</p>
+        <h2 class="section-title">Four steps. That's it.</h2>
+        <p class="section-lede">No leagues, no fees, no flaking. Just games.</p>
       </div>
 
       <div class="steps">
         <div class="step reveal">
           <span class="step-num">1</span>
-          <p class="placeholder-text">[Step one placeholder copy]</p>
+          <p>Find a game near you</p>
         </div>
         <div class="step reveal">
           <span class="step-num">2</span>
-          <p class="placeholder-text">[Step two placeholder copy]</p>
+          <p>Join the lobby</p>
         </div>
         <div class="step reveal">
           <span class="step-num">3</span>
-          <p class="placeholder-text">[Step three placeholder copy]</p>
+          <p>Accept your confirmation text 2 hours before the game</p>
+        </div>
+        <div class="step reveal">
+          <span class="step-num">4</span>
+          <p>Show up and play</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================== WHY WE MADE IT ========================= -->
+  <section class="section why" id="why">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="section-eyebrow">Why we made it</span>
+        <h2 class="section-title">We got tired of leagues.</h2>
+        <p class="section-lede">A few things kept happening to us, so we built the app we wished existed.</p>
+      </div>
+
+      <div class="steps why-reasons">
+        <div class="step reveal">
+          <p>We hated committing to leagues we couldn't even show up to.</p>
+        </div>
+        <div class="step reveal">
+          <p>We could never find games that matched our skill level.</p>
+        </div>
+        <div class="step reveal">
+          <p>We hated hunting for leagues and paying fees just to play.</p>
+        </div>
+        <div class="step reveal why-reason--main">
+          <p>Most of all, we wanted to bring back the vibe of the sandlot: play when you want, on your schedule.</p>
         </div>
       </div>
     </div>
@@ -103,90 +142,15 @@
     <div class="wrap">
       <div class="reveal">
         <span class="section-eyebrow">Sports</span>
-        <h2 class="section-title placeholder-text">[Section headline placeholder]</h2>
-        <p class="section-lede placeholder-text">[Short section description placeholder — one or two lines]</p>
+        <h2 class="section-title">Pick your sport.</h2>
+        <p class="section-lede">Four to choose from, more games every week.</p>
       </div>
 
-      <div class="sports-grid">
-        <div class="sport-card reveal">
-          <svg class="sport-art" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="bballTitle">
-            <title id="bballTitle">Illustration of a pickup basketball game</title>
-            <rect width="400" height="300" fill="#fbeede"/>
-            <circle cx="330" cy="40" r="90" fill="#f5a623" opacity="0.14"/>
-            <path d="M20 246 Q200 214 380 246" stroke="#d9822b" stroke-width="2" fill="none" opacity="0.35"/>
-            <path d="M118 246 A82 82 0 0 1 282 246" stroke="#d9822b" stroke-width="2" fill="none" opacity="0.22"/>
-
-            <path d="M100 190 Q168 150 208 184" stroke="#98a49b" stroke-width="1.5" stroke-dasharray="4 6" fill="none" opacity="0.6"/>
-            <path d="M300 202 Q250 166 214 187" stroke="#98a49b" stroke-width="1.5" stroke-dasharray="4 6" fill="none" opacity="0.6"/>
-
-            <g transform="translate(140,68) scale(5)" stroke="#d9822b" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" fill="none">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M3 12h18M12 3v18M5.6 5.6c3 3 3 9.8 0 12.8M18.4 5.6c-3 3-3 9.8 0 12.8"/>
-            </g>
-
-            <g>
-              <circle cx="90" cy="205" r="20" fill="#3f6bd6"/>
-              <text x="90" y="211" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="14" fill="#fff">JD</text>
-            </g>
-            <g>
-              <circle cx="312" cy="216" r="18" fill="#1f7a4d"/>
-              <text x="312" y="221" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="13" fill="#fff">AR</text>
-            </g>
-            <g>
-              <circle cx="205" cy="258" r="16" fill="#8a5a2b"/>
-              <text x="205" y="263" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="12" fill="#fff">CM</text>
-            </g>
-
-            <g transform="translate(224,36)">
-              <rect width="146" height="30" rx="15" fill="#ffffff" opacity="0.92"/>
-              <circle cx="16" cy="15" r="4" fill="#d9822b"/>
-              <text x="28" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600" font-size="12" fill="#1b241f">Tomorrow · 6:00 PM</text>
-            </g>
-          </svg>
-          <div class="sport-card-body">
-            <span class="sport-tag sport-tag--basketball"><span class="dot"></span>Basketball</span>
-            <h3 class="placeholder-text">[Basketball caption placeholder]</h3>
-          </div>
-        </div>
-
-        <div class="sport-card reveal">
-          <svg class="sport-art" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="baseballTitle">
-            <title id="baseballTitle">Illustration of a pickup baseball game</title>
-            <rect width="400" height="300" fill="#eaf0fd"/>
-            <circle cx="58" cy="46" r="80" fill="#1d4ed8" opacity="0.1"/>
-            <path d="M200 88 L282 170 L200 252 L118 170 Z" stroke="#1d4ed8" stroke-width="2" fill="none" opacity="0.3"/>
-
-            <path d="M128 202 Q200 128 262 88" stroke="#98a49b" stroke-width="1.5" stroke-dasharray="4 6" fill="none" opacity="0.6"/>
-
-            <g transform="translate(140,110) scale(5)" stroke="#1d4ed8" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" fill="none">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M6.5 4.5C8 7 8.4 9.5 8 12s-1.5 4.8-3 6.9M17.5 4.5C16 7 15.6 9.5 16 12s1.5 4.8 3 6.9"/>
-            </g>
-
-            <g>
-              <circle cx="200" cy="88" r="16" fill="#1f7a4d"/>
-              <text x="200" y="93" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="12" fill="#fff">LB</text>
-            </g>
-            <g>
-              <circle cx="282" cy="170" r="16" fill="#d92d3a"/>
-              <text x="282" y="175" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="12" fill="#fff">DK</text>
-            </g>
-            <g>
-              <circle cx="118" cy="170" r="16" fill="#3f6bd6"/>
-              <text x="118" y="175" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="12" fill="#fff">MK</text>
-            </g>
-
-            <g transform="translate(20,232)">
-              <rect width="164" height="30" rx="15" fill="#ffffff" opacity="0.92"/>
-              <circle cx="16" cy="15" r="4" fill="#1d4ed8"/>
-              <text x="28" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-weight="600" font-size="12" fill="#1b241f">Riverside Park · 3.4 mi</text>
-            </g>
-          </svg>
-          <div class="sport-card-body">
-            <span class="sport-tag sport-tag--baseball"><span class="dot"></span>Baseball</span>
-            <h3 class="placeholder-text">[Baseball caption placeholder]</h3>
-          </div>
-        </div>
+      <div class="sports-list">
+        <div class="sport-item reveal"><span class="dot dot--basketball"></span>Basketball</div>
+        <div class="sport-item reveal"><span class="dot dot--soccer"></span>Soccer</div>
+        <div class="sport-item reveal"><span class="dot dot--baseball"></span>Baseball</div>
+        <div class="sport-item reveal"><span class="dot dot--flag"></span>Flag Football</div>
       </div>
     </div>
   </section>
@@ -194,8 +158,8 @@
   <!-- ============================ BOTTOM CTA =========================== -->
   <section class="section cta-bottom" id="join">
     <div class="wrap reveal">
-      <h2 class="section-title placeholder-text">[Final CTA headline placeholder]</h2>
-      <p class="section-lede placeholder-text" style="margin-left:auto;margin-right:auto;">[Final CTA subtext placeholder]</p>
+      <h2 class="section-title">Be the first game in your city.</h2>
+      <p class="section-lede" style="margin-left:auto;margin-right:auto;">We'll text you once we're live in your area.</p>
 
       <form class="signup" id="form-bottom" novalidate>
         <div class="signup-fields">
@@ -207,9 +171,13 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3h3l1.5 4.5-2 1.5a12 12 0 0 0 6 6l1.5-2 4.5 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5a2 2 0 0 1 2-2Z"/></svg>
             <input type="tel" name="phone" placeholder="Phone number" aria-label="Phone number" autocomplete="tel" required>
           </label>
-          <button class="btn-primary" type="submit">Get early access</button>
+          <button class="btn-primary" type="submit">Join the waitlist</button>
         </div>
-        <p class="signup-note placeholder-text">[Form microcopy placeholder — e.g. privacy / launch-city note]</p>
+        <p class="signup-note">We'll only text you two things: when the app is released, and when your games are ready.</p>
+        <label class="signup-consent">
+          <input type="checkbox" name="consent" required>
+          <span>I agree to receive texts and emails from Pick Up about the waitlist. Msg &amp; data rates may apply. Reply STOP to opt out. <a href="https://api.pickupsports.us/privacy" target="_blank" rel="noopener">Privacy Policy</a> &amp; <a href="https://api.pickupsports.us/terms" target="_blank" rel="noopener">Terms</a></span>
+        </label>
         <p class="signup-error" role="alert"></p>
         <div class="signup-success" role="status">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -230,7 +198,7 @@
       </div>
       <span class="footer-wordmark">Pick Up</span>
     </div>
-    <p class="placeholder-text">[Footer placeholder — copyright / contact / legal links]</p>
+    <p><a href="https://api.pickupsports.us/privacy" class="footer-link">Privacy Policy</a> · <a href="https://api.pickupsports.us/terms" class="footer-link">Terms of Service</a></p>
   </div>
 </footer>
 

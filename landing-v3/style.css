@@ -582,6 +582,15 @@ footer p {
   color: var(--muted-text);
   text-align: left;
 }
+/* Nested inside .signup-fields: force it onto its own line within the same
+   card/pill (flex-wrap on the parent already wraps the button below when
+   the row runs out of room, so a full-width basis here lands it as its own
+   row inside the border instead of floating below the whole control). */
+.signup-fields .signup-consent {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 2px 4px;
+}
 .signup-consent input[type="checkbox"] {
   margin-top: 3px;
   flex-shrink: 0;

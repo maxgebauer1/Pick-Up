@@ -1,7 +1,20 @@
 {
   "rewrites": [
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/thanks", "destination": "/thanks.html" },
-    { "source": "/terms", "destination": "/terms.html" }
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/thanks",
+      "destination": "/thanks.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/vote",
+      "destination": "/vote.html"
+    }
   ]
 }

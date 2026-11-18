@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vote on the first game | Pick Up</title>
+<meta name="description" content="Vote on the sport and the time for the next Pick Up game.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6f3;
+    --surface: #ffffff;
+    --ink: #1b241f;
+    --muted: #5f6b63;
+    --line: #e4eae4;
+    --green: #1f7a4d;
+    --green-deep: #186640;
+    --green-soft: #e7f3ec;
+    --amber: #d9822b;
+    --amber-soft: #fbeede;
+    --blue: #1d4ed8;
+    --red: #d92d3a;
+    --mark-amber: #f5a623;
+    --mark-green: #17a34a;
+    --soccer: #17a34a;
+    --baseball: #1d4ed8;
+    --basketball: #f5a623;
+    --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 40px 16px 56px; }
+
+  .mark {
+    --size: 56px;
+    width: var(--size); height: var(--size);
+    border-radius: calc(var(--size) * 0.22);
+    background: #14181c;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: calc(var(--size) * 0.13);
+    margin-bottom: 24px;
+  }
+  .mark-letters {
+    color: #fff; font-weight: 800; font-style: italic;
+    font-size: calc(var(--size) * 0.42); line-height: 1; letter-spacing: -0.04em;
+    flex: 1; display: flex; align-items: center;
+  }
+  .mark-bar { display: flex; gap: calc(var(--size) * 0.03); width: 100%; }
+  .mark-bar span { flex: 1; height: max(2px, calc(var(--size) * 0.045)); border-radius: 999px; }
+  .mark-bar span:nth-child(1) { background: var(--blue); }
+  .mark-bar span:nth-child(2) { background: var(--red); }
+  .mark-bar span:nth-child(3) { background: var(--mark-amber); }
+  .mark-bar span:nth-child(4) { background: var(--mark-green); }
+
+  h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 10px; }
+  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 28px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px 20px;
+    margin-bottom: 14px;
+  }
+  .step { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .hint { font-size: 0.9rem; color: var(--muted); margin: 0 0 14px; }
+
+  input[type="text"] {
+    width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 14px;
+  }
+  input[type="text"]:focus { outline: 2px solid var(--green); outline-offset: 1px; background: #fff; }
+
+  /* Sport choice */
+  .sports { display: grid; gap: 10px; }
+  .sport { position: relative; display: block; cursor: pointer; }
+  .sport input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .sport-body {
+    display: flex; align-items: center; gap: 12px;
+    border: 1.5px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; font-weight: 700; background: #fff;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .sport[data-sport="soccer"] .dot { background: var(--soccer); }
+  .sport[data-sport="baseball"] .dot { background: var(--baseball); }
+  .sport[data-sport="basketball"] .dot { background: var(--basketball); }
+  .radio {
+    margin-left: auto; width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid #c5cfc7; flex: none;
+  }
+  .sport input:checked + .sport-body { border-color: var(--green); background: var(--green-soft); }
+  .sport input:checked + .sport-body .radio { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 4px var(--green-soft); }
+  .sport input:focus-visible + .sport-body, .chip input:focus-visible + span, .check input:focus-visible + .box { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  /* Buy-in */
+  .buyin {
+    background: var(--amber-soft); border-color: #f1d9b9;
+  }
+  .buyin .price { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+  .buyin p { margin: 6px 0 0; font-size: 0.93rem; color: #5b4630; }
+
+  .check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; position: relative; }
+  .check input { position: absolute; opacity: 0; }
+  .box {
+    width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #c5cfc7;
+    flex: none; margin-top: 1px; background: #fff; display: flex; align-items: center; justify-content: center;
+  }
+  .box svg { width: 14px; height: 14px; stroke: #fff; opacity: 0; }
+  .check input:checked + .box { background: var(--green); border-color: var(--green); }
+  .check input:checked + .box svg { opacity: 1; }
+  .check strong { display: block; font-weight: 700; }
+  .check small { color: var(--muted); font-size: 0.88rem; }
+
+  /* Times */
+  .day { margin-top: 14px; }
+  .day:first-of-type { margin-top: 0; }
+  .day-label { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; cursor: pointer; }
+  .chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .chip span {
+    display: block; padding: 10px 16px; border-radius: 9999px;
+    border: 1.5px solid var(--line); background: #fff; font-weight: 700; font-size: 0.92rem;
+  }
+  .chip input:checked + span { background: var(--green); border-color: var(--green); color: #fff; }
+
+  .submit {
+    width: 100%; font: inherit; font-size: 1rem; font-weight: 700; color: #fff;
+    background: var(--green); border: none; border-radius: 9999px;
+    padding: 16px 20px; cursor: pointer; margin-top: 6px;
+  }
+  .submit:hover { background: var(--green-deep); }
+  .submit:disabled { opacity: 0.6; cursor: default; }
+  .error { color: var(--red); font-size: 0.9rem; font-weight: 600; margin: 10px 2px 0; min-height: 1.2em; }
+
+  .done { text-align: center; padding: 40px 20px; display: none; }
+  .done h2 { font-size: 1.5rem; margin-bottom: 8px; }
+  .done p { color: var(--muted); margin: 0 0 6px; }
+
+
+  /* Chat */
+  .chat-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding: 2px; }
+  .msg { background: var(--bg); border-radius: 12px; padding: 9px 12px; font-size: 0.93rem; word-wrap: break-word; overflow-wrap: anywhere; }
+  .msg b { font-weight: 700; margin-right: 6px; }
+  .chat-empty { color: var(--muted); font-size: 0.9rem; }
+  .chat-row { display: flex; gap: 8px; }
+  .chat-row input { flex: 1; min-width: 0; }
+  .send { font: inherit; font-weight: 700; color: #fff; background: var(--green); border: none; border-radius: 9999px; padding: 0 20px; cursor: pointer; }
+  .send:disabled { opacity: 0.6; }
+
+  footer { margin-top: 32px; text-align: center; font-size: 0.78rem; color: var(--muted); }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mark" aria-hidden="true">
+    <span class="mark-letters">PU</span>
+    <span class="mark-bar"><span></span><span></span><span></span><span></span></span>
+  </div>
+
+  <div id="form-view">
+    <h1>Help us pick the first game</h1>
+    <p class="lede">Vote on the sport and the time. It takes under a minute.</p>
+
+    <form id="vote-form" novalidate>
+      <div class="card">
+        <p class="step">Step 1</p>
+        <h2>Your name</h2>
+        <p class="hint">We already have your contact info.</p>
+        <input type="text" id="name" name="name" autocomplete="name" placeholder="First and last name" maxlength="80" required>
+      </div>
+
+      <div class="card">
+        <p class="step">Step 2</p>
+        <h2>Which game?</h2>
+        <p class="hint">Pick one.</p>
+        <div class="sports" role="radiogroup" aria-label="Sport">
+          <label class="sport" data-sport="soccer">
+            <input type="radio" name="sport" value="soccer">
+            <span class="sport-body"><span class="dot"></span>Soccer<span class="radio"></span></span>
+          </label>
+          <label class="sport" data-sport="baseball">
+            <input type="radio" name="sport" value="baseball">
+            <span class="sport-body"><span class="dot"></span>Baseball<span class="radio"></span></span>
+          </label>
+          <label class="sport" data-sport="basketball">
+            <input type="radio" name="sport" value="basketball">
+            <span class="sport-body"><span class="dot"></span>Basketball<span class="radio"></span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card buyin">
+        <p class="step" style="color: var(--amber);">Step 3</p>
+        <h2>The buy-in</h2>
+        <div class="price">$5</div>
+        <p>Each player pays $5 to the captain for organizing the game. We only collect it once the game is being finalized, not now.</p>
+      </div>
+
+      <div class="card">
+        <label class="check">
+          <input type="checkbox" id="captain" name="captain">
+          <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+          <span>
+            <strong>I want to be eligible to be the captain</strong>
+            <small>The captain organizes the game and collects the $5 from players.</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="card">
+        <p class="step">Step 4</p>
+        <h2>When can you play?</h2>
+        <p class="hint">Pick every time that works for you.</p>
+
+        <div class="day">
+          <div class="day-label">Saturday</div>
+          <div class="chips" data-day="sat"></div>
+        </div>
+        <div class="day">
+          <div class="day-label">Sunday</div>
+          <div class="chips" data-day="sun"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit" id="submit">Submit my vote</button>
+      <p class="error" id="error" role="alert"></p>
+    </form>
+  </div>
+
+  <div class="card done" id="done-view">
+    <h2>Vote counted</h2>
+    <p>Thanks, <span id="done-name"></span>. We'll text you once the game is set.</p>
+  </div>
+
+  <div class="card" id="chat" style="margin-top: 14px;">
+    <h2>Chat</h2>
+    <p class="hint">Talk it over with everyone else. Uses the name you entered above.</p>
+    <div class="chat-list" id="chat-list" aria-live="polite"><p class="chat-empty">No messages yet.</p></div>
+    <form class="chat-row" id="chat-form" autocomplete="off">
+      <input type="text" id="chat-input" placeholder="Write a message" maxlength="300" aria-label="Message">
+      <button type="submit" class="send" id="chat-send">Send</button>
+    </form>
+    <p class="error" id="chat-error" role="alert"></p>
+  </div>
+
+  <footer>
+    <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var SLOTS = ["9am", "11am", "1pm", "3pm", "5pm"];
+  document.querySelectorAll(".chips").forEach(function (wrap) {
+    var day = wrap.getAttribute("data-day");
+    SLOTS.forEach(function (s) {
+      var label = document.createElement("label");
+      label.className = "chip";
+      label.innerHTML = '<input type="checkbox" name="time" value="' + day + "-" + s + '"><span>' + s + "</span>";
+      wrap.appendChild(label);
+    });
+  });
+
+  var form = document.getElementById("vote-form");
+  var errorEl = document.getElementById("error");
+  var btn = document.getElementById("submit");
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    errorEl.textContent = "";
+
+    var name = document.getElementById("name").value.trim();
+    var sportEl = form.querySelector('input[name="sport"]:checked');
+    var times = Array.prototype.map.call(
+      form.querySelectorAll('input[name="time"]:checked'),
+      function (el) { return el.value; }
+    );
+
+    if (name.length < 2) { errorEl.textContent = "Enter your name."; return; }
+    if (!sportEl) { errorEl.textContent = "Pick a game."; return; }
+    if (times.length === 0) { errorEl.textContent = "Pick at least one time."; return; }
+
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    fetch("/api/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name,
+        sport: sportEl.value,
+        captain: document.getElementById("captain").checked,
+        times: times
+      })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.error || "Something went wrong.");
+        document.getElementById("done-name").textContent = name.split(" ")[0];
+        document.getElementById("form-view").style.display = "none";
+        document.getElementById("done-view").style.display = "block";
+        window.scrollTo(0, 0);
+      })
+      .catch(function (err) {
+        errorEl.textContent = err.message || "Something went wrong. Try again.";
+        btn.disabled = false;
+        btn.textContent = "Submit my vote";
+      });
+  });
+
+  /* Chat */
+  var chatList = document.getElementById("chat-list");
+  var chatForm = document.getElementById("chat-form");
+  var chatInput = document.getElementById("chat-input");
+  var chatErr = document.getElementById("chat-error");
+  var chatSend = document.getElementById("chat-send");
+  var lastId = -1;
+
+  function renderChat(messages) {
+    var last = messages.length ? messages[messages.length - 1].id : 0;
+    if (last === lastId) return;
+    lastId = last;
+    var atBottom = chatList.scrollHeight - chatList.scrollTop - chatList.clientHeight < 40;
+    chatList.textContent = "";
+    if (!messages.length) {
+      var p = document.createElement("p");
+      p.className = "chat-empty";
+      p.textContent = "No messages yet.";
+      chatList.appendChild(p);
+      return;
+    }
+    messages.forEach(function (m) {
+      var d = document.createElement("div");
+      d.className = "msg";
+      var b = document.createElement("b");
+      b.textContent = m.name;
+      d.appendChild(b);
+      d.appendChild(document.createTextNode(m.message));
+      chatList.appendChild(d);
+    });
+    if (atBottom) chatList.scrollTop = chatList.scrollHeight;
+  }
+
+  function loadChat() {
+    if (document.hidden) return;
+    fetch("/api/chat").then(function (r) { return r.json(); })
+      .then(function (d) { if (d.messages) renderChat(d.messages); })
+      .catch(function () {});
+  }
+  loadChat();
+  setInterval(loadChat, 5000);
+
+  chatForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    chatErr.textContent = "";
+    var name = document.getElementById("name").value.trim();
+    var message = chatInput.value.trim();
+    if (name.length < 2) { chatErr.textContent = "Enter your name at the top first."; return; }
+    if (!message) return;
+    chatSend.disabled = true;
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name, message: message })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.error || "Could not send.");
+        chatInput.value = "";
+        lastId = -1;
+        loadChat();
+      })
+      .catch(function (err) { chatErr.textContent = err.message; })
+      .then(function () { chatSend.disabled = false; });
+  });
+})();
+</script>
+</body>
+</html>

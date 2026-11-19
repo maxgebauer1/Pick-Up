@@ -163,6 +163,14 @@
   .send { font-family: var(--head); font-weight: 800; font-size: 1.2rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--paper); background: var(--ink); border: 2px solid var(--rule); border-radius: 3px; padding: 0 18px; cursor: pointer; }
   .send:disabled { opacity: 0.6; }
 
+  .waiver-box { height: 220px; overflow-y: auto; background: #fff; border: 2px solid var(--rule); border-radius: 3px; padding: 12px 14px; font-size: 0.9rem; line-height: 1.45; margin-bottom: 14px; }
+  .waiver-box h3 { font-family: var(--head); font-weight: 800; text-transform: uppercase; font-size: 1.05rem; margin: 12px 0 2px; letter-spacing: 0.03em; }
+  .waiver-box h3:first-child { margin-top: 0; }
+  .waiver-box p { margin: 0 0 6px; }
+  .sign-label { display: block; font-family: var(--head); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin: 14px 0 6px; }
+  #signature { font-family: "Brush Script MT", "Segoe Script", cursive; font-size: 1.4rem; }
+  .sign-date { font-size: 0.9rem; color: var(--muted); margin: 6px 0 0; }
+
   footer { margin-top: 30px; text-align: center; font-size: 0.85rem; color: var(--muted); }
   footer a { color: inherit; }
 </style>
@@ -240,7 +248,43 @@
         </div>
       </div>
 
-      <button type="submit" class="submit" id="submit">Submit my vote</button>
+      <div class="card">
+        <p class="step">Step 5</p>
+        <h2>Read and sign the waiver</h2>
+        <p class="hint">Read the whole thing, then sign at the bottom.</p>
+        <div class="waiver-box" tabindex="0" aria-label="Waiver text">
+          <h3>Assumption of risk and release of liability</h3>
+          <p>I want to take part in pickup sports games organized through Pick Up (pickupsports.us), including soccer, baseball and basketball (the "Activities"). In exchange for being allowed to take part, I agree to the following.</p>
+          <h3>1. I understand the risks</h3>
+          <p>Sports involve a real risk of injury, including sprains, broken bones, concussions, serious injury, and in rare cases death. Risks come from my own actions, other players, equipment, and the playing surface and conditions. I take part voluntarily and accept these risks.</p>
+          <h3>2. I am fit to play</h3>
+          <p>I am in good enough health to take part, and I have no condition that would make it unsafe for me or others. I will stop playing if I feel hurt or unwell.</p>
+          <h3>3. I release Pick Up</h3>
+          <p>To the fullest extent the law allows, I release and agree not to sue Pick Up, its owner and operator, its captains and organizers, and anyone who helps run a game, from any claim for injury, loss or damage connected to the Activities, including claims caused by ordinary negligence. This does not cover gross negligence or intentional harm.</p>
+          <h3>4. Captains and venues</h3>
+          <p>Captains are players who volunteer to organize a game. They are not professional coaches, referees or safety staff. Pick Up does not own or control the fields or courts used and does not promise that any venue or equipment is safe.</p>
+          <h3>5. Conduct</h3>
+          <p>I will play fairly, treat others with respect, and follow any rules the captain sets. I may be removed from a game for unsafe or abusive behavior.</p>
+          <h3>6. Emergencies</h3>
+          <p>If I am hurt, I agree that medical help may be called for me. I am responsible for my own medical costs and my own insurance.</p>
+          <h3>7. The buy-in</h3>
+          <p>I understand the $5 buy-in is paid to the captain for organizing the game and is collected only once the game is being finalized. Pick Up does not guarantee that any game will take place.</p>
+          <h3>8. Agreement</h3>
+          <p>I have read this waiver, I understand it, and I sign it freely. My typed name below counts as my legal signature, the same as signing on paper. If any part of this waiver is found unenforceable, the rest still applies. I confirm I am at least 18 years old.</p>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="waiver-agree">
+          <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+          <span><strong>I have read and agree to the waiver</strong></span>
+        </label>
+
+        <label class="sign-label" for="signature">Sign with your full name</label>
+        <input type="text" id="signature" autocomplete="name" placeholder="Type your full legal name" maxlength="100">
+        <p class="sign-date">Date: <span id="sign-date"></span></p>
+      </div>
+
+      <button type="submit" class="submit" id="submit">Sign and submit my vote</button>
       <p class="error" id="error" role="alert"></p>
     </form>
   </div>
@@ -279,6 +323,7 @@
     });
   });
 
+  document.getElementById("sign-date").textContent = new Date().toLocaleDateString([], { year: "numeric", month: "long", day: "numeric" });
   var form = document.getElementById("vote-form");
   var errorEl = document.getElementById("error");
   var btn = document.getElementById("submit");
@@ -298,6 +343,10 @@
     if (!sportEl) { errorEl.textContent = "Pick a game."; return; }
     if (times.length === 0) { errorEl.textContent = "Pick at least one time."; return; }
 
+    var signature = document.getElementById("signature").value.trim();
+    if (!document.getElementById("waiver-agree").checked) { errorEl.textContent = "Check the box to agree to the waiver."; return; }
+    if (signature.length < 2) { errorEl.textContent = "Type your full name to sign the waiver."; return; }
+
     btn.disabled = true;
     btn.textContent = "Submitting...";
 
@@ -308,7 +357,9 @@
         name: name,
         sport: sportEl.value,
         captain: document.getElementById("captain").checked,
-        times: times
+        times: times,
+        waiverAgreed: true,
+        signature: signature
       })
     })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
@@ -322,7 +373,7 @@
       .catch(function (err) {
         errorEl.textContent = err.message || "Something went wrong. Try again.";
         btn.disabled = false;
-        btn.textContent = "Submit my vote";
+        btn.textContent = "Sign and submit my vote";
       });
   });
 

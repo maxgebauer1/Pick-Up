@@ -35,7 +35,11 @@ module.exports = async function handler(req, res) {
       id SERIAL PRIMARY KEY, name TEXT NOT NULL, message TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
 
-    const votes = await sql`SELECT id, name, sport, captain, times, created_at FROM game_votes ORDER BY id DESC`;
+    await sql`ALTER TABLE game_votes ADD COLUMN IF NOT EXISTS waiver_signature TEXT`;
+    await sql`ALTER TABLE game_votes ADD COLUMN IF NOT EXISTS waiver_version TEXT`;
+    await sql`ALTER TABLE game_votes ADD COLUMN IF NOT EXISTS waiver_signed_at TIMESTAMPTZ`;
+    await sql`ALTER TABLE game_votes ADD COLUMN IF NOT EXISTS waiver_ip TEXT`;
+    const votes = await sql`SELECT id, name, sport, captain, times, created_at, waiver_signature, waiver_version, waiver_signed_at FROM game_votes ORDER BY id DESC`;
     const chat = await sql`SELECT id, name, message, created_at FROM chat_messages ORDER BY id DESC LIMIT 200`;
     return res.status(200).json({ votes, chat });
   } catch (err) {

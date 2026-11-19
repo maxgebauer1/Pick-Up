@@ -93,7 +93,7 @@
 
     var vc = el("div", "card"); vc.appendChild(el("h2", null, "Everyone"));
     var wrap = el("div", "tbl"), t = el("table"), thead = el("tr");
-    ["Name", "Game", "Captain", "Times", "When"].forEach(function (h) { thead.appendChild(el("th", null, h)); });
+    ["Name", "Game", "Captain", "Times", "Waiver", "When"].forEach(function (h) { thead.appendChild(el("th", null, h)); });
     t.appendChild(thead);
     v.forEach(function (x) {
       var tr = el("tr");
@@ -101,6 +101,7 @@
       tr.appendChild(el("td", null, x.sport));
       var cap = el("td"); if (x.captain) cap.appendChild(el("span", "tag", "yes")); tr.appendChild(cap);
       tr.appendChild(el("td", null, (x.times || []).map(timeLabel).join(", ")));
+      tr.appendChild(el("td", null, x.waiver_signature ? "Signed: " + x.waiver_signature + " (" + fmt(x.waiver_signed_at) + ")" : "None"));
       tr.appendChild(el("td", "muted", fmt(x.created_at)));
       t.appendChild(tr);
     });

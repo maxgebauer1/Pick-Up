@@ -1,6 +1,60 @@
 # Pick Up — where I left off / next steps
 
-_Last updated: 2026-07-27_
+_Last updated: 2026-11-18_
+
+## Latest: the "vote on the first game" page (plain-English summary)
+
+**What it is.** A one-page site for ad traffic. People vote on which game
+they want, and we use the results to set up the first game.
+
+**Live links**
+- Vote page (the ad link): https://api.pickupsports.us/vote
+- Private results page: https://api.pickupsports.us/results (password-protected)
+
+**What people do on the vote page**
+1. Type their name (we already have their email and phone).
+2. Pick one game: soccer, baseball, or basketball.
+3. See the $5 buy-in. It goes to the "captain" for organizing the game and is
+   collected only once the game is being finalized, not at signup.
+4. Optionally check a box to be eligible to be the captain.
+5. Pick every Saturday and Sunday time that works (9am, 11am, 1pm, 3pm, 5pm).
+6. Submit. There is also a public chat at the bottom.
+The page says the first game is "next weekend" (no dates, so update the wording
+when that stops being true).
+
+**Where the data goes.** Into our Neon database (the same one as the waitlist),
+in two tables: `game_votes` (name, game, captain yes/no, times) and
+`chat_messages`. It is NOT in GitHub, GitHub only holds the code.
+
+**How to see the data.** Open the results page and enter the password. It shows
+vote counts per game, the most popular times, who volunteered as captain, a
+table of everyone, and the chat log. The password is stored as the
+`RESULTS_PASSWORD` environment variable in the Vercel project `waitlist-api`
+(change it there, then redeploy). It is not written in this repo on purpose.
+
+**Look.** Cream paper background, navy text, red-orange accent, gold for the
+buy-in. Fonts are Barlow and Barlow Condensed. This is intentionally different
+from the app's "Turf" green look.
+
+**Where the files are** (all in `waitlist-api/`): `vote.html`, `results.html`,
+`api/vote.js`, `api/chat.js`, `api/results.js`, plus routes in `vercel.json`.
+
+**How it was deployed.** Run `npx vercel --prod` from `waitlist-api/`. Pushing
+to GitHub does not deploy this project automatically.
+
+**Still to do / loose ends**
+- Delete the two fake test players (Jake M and Marcus T) and their two test chat
+  messages before counting real results.
+- Not added yet: Meta Pixel and a conversion event on submit (needed for ad
+  tracking).
+- The chat is public with no moderation. Check it once ads are running.
+- Money games were "cut on purpose" in `CLAUDE.md`. The $5 buy-in was added at
+  the owner's request, so that doc may need updating.
+- Vercel suggested turning on two-factor authentication for the account.
+
+---
+
+## Earlier: July 27 session
 
 ## Status: shipped to main
 

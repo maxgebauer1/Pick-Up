@@ -7,159 +7,163 @@
 <meta name="description" content="Vote on the sport and the time for the next Pick Up game.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f4f6f3;
-    --surface: #ffffff;
-    --ink: #1b241f;
-    --muted: #5f6b63;
-    --line: #e4eae4;
-    --green: #1f7a4d;
-    --green-deep: #186640;
-    --green-soft: #e7f3ec;
-    --amber: #d9822b;
-    --amber-soft: #fbeede;
-    --blue: #1d4ed8;
-    --red: #d92d3a;
-    --mark-amber: #f5a623;
-    --mark-green: #17a34a;
-    --soccer: #17a34a;
-    --baseball: #1d4ed8;
-    --basketball: #f5a623;
-    --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --paper: #efe8d8;
+    --card: #f8f3e7;
+    --ink: #1c2541;
+    --muted: #5d6178;
+    --rule: #1c2541;
+    --accent: #e0472b;
+    --accent-deep: #b9351d;
+    --gold: #f0b429;
+    --gold-soft: #f7e3a8;
+    --pitch: #2f7a4f;
+    --diamond: #1c2541;
+    --court: #e0872b;
+    --bar1: #1d4ed8;
+    --bar2: #d92d3a;
+    --bar3: #f5a623;
+    --bar4: #17a34a;
+    --head: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "Barlow", -apple-system, "Segoe UI", sans-serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: var(--font);
-    background: var(--bg);
+    font-family: var(--body);
+    font-size: 17px;
+    background: var(--paper);
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
-    line-height: 1.5;
+    line-height: 1.45;
   }
-  .wrap { max-width: 560px; margin: 0 auto; padding: 40px 16px 56px; }
+  .wrap { max-width: 540px; margin: 0 auto; padding: 32px 16px 56px; }
 
   .mark {
-    --size: 56px;
+    --size: 52px;
     width: var(--size); height: var(--size);
-    border-radius: calc(var(--size) * 0.22);
+    border-radius: 6px;
     background: #14181c;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: calc(var(--size) * 0.13);
-    margin-bottom: 24px;
+    margin-bottom: 22px;
   }
   .mark-letters {
-    color: #fff; font-weight: 800; font-style: italic;
-    font-size: calc(var(--size) * 0.42); line-height: 1; letter-spacing: -0.04em;
+    color: #fff; font-family: var(--head); font-weight: 800; font-style: italic;
+    font-size: calc(var(--size) * 0.5); line-height: 1; letter-spacing: -0.02em;
     flex: 1; display: flex; align-items: center;
   }
   .mark-bar { display: flex; gap: calc(var(--size) * 0.03); width: 100%; }
-  .mark-bar span { flex: 1; height: max(2px, calc(var(--size) * 0.045)); border-radius: 999px; }
-  .mark-bar span:nth-child(1) { background: var(--blue); }
-  .mark-bar span:nth-child(2) { background: var(--red); }
-  .mark-bar span:nth-child(3) { background: var(--mark-amber); }
-  .mark-bar span:nth-child(4) { background: var(--mark-green); }
+  .mark-bar span { flex: 1; height: max(2px, calc(var(--size) * 0.045)); }
+  .mark-bar span:nth-child(1) { background: var(--bar1); }
+  .mark-bar span:nth-child(2) { background: var(--bar2); }
+  .mark-bar span:nth-child(3) { background: var(--bar3); }
+  .mark-bar span:nth-child(4) { background: var(--bar4); }
 
-  h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 10px; }
-  .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 28px; }
+  h1 {
+    font-family: var(--head); font-weight: 800; text-transform: uppercase;
+    font-size: 3rem; line-height: 0.98; letter-spacing: 0.005em; margin: 0 0 12px;
+  }
+  .lede { color: var(--muted); margin: 0 0 26px; font-size: 1.05rem; }
+
+  .when { display: inline-block; font-family: var(--head); font-weight: 800; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--gold); border: 2px solid var(--rule); border-radius: 3px; padding: 3px 12px; margin: -10px 0 24px; }
 
   .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 22px 20px;
-    margin-bottom: 14px;
+    background: var(--card);
+    border: 2px solid var(--rule);
+    border-radius: 4px;
+    padding: 18px 18px 20px;
+    margin-bottom: 16px;
   }
-  .step { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); margin: 0 0 4px; }
-  h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
-  .hint { font-size: 0.9rem; color: var(--muted); margin: 0 0 14px; }
+  .step {
+    display: inline-block; font-family: var(--head); font-weight: 700; font-size: 0.95rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--ink); color: var(--paper); padding: 1px 8px; margin: 0 0 8px;
+  }
+  h2 {
+    font-family: var(--head); font-weight: 800; text-transform: uppercase;
+    font-size: 1.6rem; line-height: 1.05; letter-spacing: 0.01em; margin: 0 0 4px;
+  }
+  .hint { font-size: 0.95rem; color: var(--muted); margin: 0 0 14px; }
 
   input[type="text"] {
-    width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
-    padding: 13px 14px;
+    width: 100%; font: inherit; color: var(--ink);
+    background: #fff; border: 2px solid var(--rule); border-radius: 3px;
+    padding: 12px 12px;
   }
-  input[type="text"]:focus { outline: 2px solid var(--green); outline-offset: 1px; background: #fff; }
+  input[type="text"]::placeholder { color: #9a9cab; }
+  input[type="text"]:focus { outline: 3px solid var(--gold); outline-offset: 0; }
 
-  /* Sport choice */
-  .sports { display: grid; gap: 10px; }
+  .sports { display: grid; gap: 8px; }
   .sport { position: relative; display: block; cursor: pointer; }
   .sport input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
   .sport-body {
     display: flex; align-items: center; gap: 12px;
-    border: 1.5px solid var(--line); border-radius: 14px;
-    padding: 14px 16px; font-weight: 700; background: #fff;
+    border: 2px solid var(--rule); border-radius: 3px; background: #fff;
+    padding: 12px 14px; font-family: var(--head); font-weight: 700;
+    font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.02em;
   }
-  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-  .sport[data-sport="soccer"] .dot { background: var(--soccer); }
-  .sport[data-sport="baseball"] .dot { background: var(--baseball); }
-  .sport[data-sport="basketball"] .dot { background: var(--basketball); }
-  .radio {
-    margin-left: auto; width: 20px; height: 20px; border-radius: 50%;
-    border: 1.5px solid #c5cfc7; flex: none;
-  }
-  .sport input:checked + .sport-body { border-color: var(--green); background: var(--green-soft); }
-  .sport input:checked + .sport-body .radio { border-color: var(--green); background: var(--green); box-shadow: inset 0 0 0 4px var(--green-soft); }
-  .sport input:focus-visible + .sport-body, .chip input:focus-visible + span, .check input:focus-visible + .box { outline: 2px solid var(--green); outline-offset: 2px; }
+  .dot { width: 14px; height: 14px; flex: none; }
+  .sport[data-sport="soccer"] .dot { background: var(--pitch); border-radius: 50%; }
+  .sport[data-sport="baseball"] .dot { background: var(--diamond); transform: rotate(45deg) scale(0.85); }
+  .sport[data-sport="basketball"] .dot { background: var(--court); border-radius: 50%; }
+  .radio { margin-left: auto; width: 22px; height: 22px; border: 2px solid var(--rule); border-radius: 50%; flex: none; background: #fff; }
+  .sport input:checked + .sport-body { background: var(--ink); color: var(--paper); }
+  .sport input:checked + .sport-body .radio { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 4px var(--ink); }
+  .sport input:focus-visible + .sport-body, .chip input:focus-visible + span, .check input:focus-visible + .box { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-  /* Buy-in */
-  .buyin {
-    background: var(--amber-soft); border-color: #f1d9b9;
-  }
-  .buyin .price { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
-  .buyin p { margin: 6px 0 0; font-size: 0.93rem; color: #5b4630; }
+  .buyin { background: var(--gold-soft); }
+  .buyin .price { font-family: var(--head); font-weight: 800; font-size: 3.2rem; line-height: 1; }
+  .buyin p { margin: 6px 0 0; font-size: 0.98rem; }
 
   .check { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; position: relative; }
   .check input { position: absolute; opacity: 0; }
-  .box {
-    width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #c5cfc7;
-    flex: none; margin-top: 1px; background: #fff; display: flex; align-items: center; justify-content: center;
-  }
-  .box svg { width: 14px; height: 14px; stroke: #fff; opacity: 0; }
-  .check input:checked + .box { background: var(--green); border-color: var(--green); }
+  .box { width: 24px; height: 24px; border: 2px solid var(--rule); border-radius: 3px; flex: none; background: #fff; display: flex; align-items: center; justify-content: center; }
+  .box svg { width: 15px; height: 15px; stroke: var(--paper); opacity: 0; }
+  .check input:checked + .box { background: var(--ink); }
   .check input:checked + .box svg { opacity: 1; }
   .check strong { display: block; font-weight: 700; }
-  .check small { color: var(--muted); font-size: 0.88rem; }
+  .check small { color: var(--muted); font-size: 0.93rem; }
 
-  /* Times */
   .day { margin-top: 14px; }
   .day:first-of-type { margin-top: 0; }
-  .day-label { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .day-label { font-family: var(--head); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { position: relative; cursor: pointer; }
   .chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
   .chip span {
-    display: block; padding: 10px 16px; border-radius: 9999px;
-    border: 1.5px solid var(--line); background: #fff; font-weight: 700; font-size: 0.92rem;
+    display: block; padding: 8px 14px; border: 2px solid var(--rule); border-radius: 3px;
+    background: #fff; font-family: var(--head); font-weight: 700; font-size: 1.15rem; letter-spacing: 0.02em;
   }
-  .chip input:checked + span { background: var(--green); border-color: var(--green); color: #fff; }
+  .chip input:checked + span { background: var(--accent); border-color: var(--rule); color: #fff; }
 
   .submit {
-    width: 100%; font: inherit; font-size: 1rem; font-weight: 700; color: #fff;
-    background: var(--green); border: none; border-radius: 9999px;
-    padding: 16px 20px; cursor: pointer; margin-top: 6px;
+    width: 100%; font-family: var(--head); font-weight: 800; font-size: 1.6rem; letter-spacing: 0.04em;
+    text-transform: uppercase; color: #fff; background: var(--accent);
+    border: 2px solid var(--rule); border-radius: 3px; padding: 12px 20px; cursor: pointer;
+    box-shadow: 4px 4px 0 var(--rule); margin-top: 4px;
   }
-  .submit:hover { background: var(--green-deep); }
+  .submit:hover { background: var(--accent-deep); }
+  .submit:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--rule); }
   .submit:disabled { opacity: 0.6; cursor: default; }
-  .error { color: var(--red); font-size: 0.9rem; font-weight: 600; margin: 10px 2px 0; min-height: 1.2em; }
+  .error { color: var(--accent-deep); font-weight: 700; margin: 10px 2px 0; min-height: 1.2em; }
 
-  .done { text-align: center; padding: 40px 20px; display: none; }
-  .done h2 { font-size: 1.5rem; margin-bottom: 8px; }
-  .done p { color: var(--muted); margin: 0 0 6px; }
+  .done { text-align: center; padding: 36px 20px; display: none; }
+  .done h2 { font-size: 2.4rem; margin-bottom: 6px; }
+  .done p { margin: 0 0 6px; }
 
-
-  /* Chat */
-  .chat-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding: 2px; }
-  .msg { background: var(--bg); border-radius: 12px; padding: 9px 12px; font-size: 0.93rem; word-wrap: break-word; overflow-wrap: anywhere; }
-  .msg b { font-weight: 700; margin-right: 6px; }
-  .chat-empty { color: var(--muted); font-size: 0.9rem; }
+  .chat-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .msg { background: #fff; border: 1.5px solid var(--rule); border-radius: 3px; padding: 7px 10px; font-size: 0.98rem; overflow-wrap: anywhere; }
+  .msg b { font-family: var(--head); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 8px; color: var(--accent-deep); }
+  .chat-empty { color: var(--muted); font-size: 0.95rem; margin: 0; }
   .chat-row { display: flex; gap: 8px; }
   .chat-row input { flex: 1; min-width: 0; }
-  .send { font: inherit; font-weight: 700; color: #fff; background: var(--green); border: none; border-radius: 9999px; padding: 0 20px; cursor: pointer; }
+  .send { font-family: var(--head); font-weight: 800; font-size: 1.2rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--paper); background: var(--ink); border: 2px solid var(--rule); border-radius: 3px; padding: 0 18px; cursor: pointer; }
   .send:disabled { opacity: 0.6; }
 
-  footer { margin-top: 32px; text-align: center; font-size: 0.78rem; color: var(--muted); }
+  footer { margin-top: 30px; text-align: center; font-size: 0.85rem; color: var(--muted); }
   footer a { color: inherit; }
 </style>
 </head>
@@ -173,6 +177,7 @@
   <div id="form-view">
     <h1>Help us pick the first game</h1>
     <p class="lede">Vote on the sport and the time. It takes under a minute.</p>
+    <p class="when">First game: next weekend</p>
 
     <form id="vote-form" novalidate>
       <div class="card">
@@ -203,7 +208,7 @@
       </div>
 
       <div class="card buyin">
-        <p class="step" style="color: var(--amber);">Step 3</p>
+        <p class="step">Step 3</p>
         <h2>The buy-in</h2>
         <div class="price">$5</div>
         <p>Each player pays $5 to the captain for organizing the game. We only collect it once the game is being finalized, not now.</p>
@@ -223,7 +228,7 @@
       <div class="card">
         <p class="step">Step 4</p>
         <h2>When can you play?</h2>
-        <p class="hint">Pick every time that works for you.</p>
+        <p class="hint">First game is next weekend. Pick every time that works for you.</p>
 
         <div class="day">
           <div class="day-label">Saturday</div>

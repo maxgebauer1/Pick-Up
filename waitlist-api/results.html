@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Results | Pick Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --paper:#efe8d8; --card:#f8f3e7; --ink:#1c2541; --muted:#5d6178; --accent:#e0472b; --gold:#f0b429;
+    --head:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow",-apple-system,"Segoe UI",sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:var(--body); background:var(--paper); color:var(--ink); line-height:1.4; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 56px; }
+  h1 { font-family:var(--head); font-weight:800; text-transform:uppercase; font-size:2.6rem; line-height:1; margin:0 0 18px; }
+  h2 { font-family:var(--head); font-weight:800; text-transform:uppercase; font-size:1.4rem; margin:0 0 10px; }
+  .card { background:var(--card); border:2px solid var(--ink); border-radius:4px; padding:16px; margin-bottom:16px; }
+  input[type=password] { font:inherit; padding:11px 12px; border:2px solid var(--ink); border-radius:3px; background:#fff; width:100%; max-width:320px; }
+  button { font-family:var(--head); font-weight:800; font-size:1.2rem; text-transform:uppercase; letter-spacing:.05em; color:#fff; background:var(--accent); border:2px solid var(--ink); border-radius:3px; padding:9px 20px; cursor:pointer; }
+  .err { color:#b9351d; font-weight:700; margin-top:10px; min-height:1.2em; }
+  .bar-row { display:flex; align-items:center; gap:10px; margin:6px 0; }
+  .bar-label { width:96px; font-weight:700; text-transform:capitalize; flex:none; }
+  .bar { flex:1; background:#fff; border:2px solid var(--ink); height:24px; border-radius:3px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--accent); }
+  .bar-n { width:28px; text-align:right; font-family:var(--head); font-weight:800; font-size:1.2rem; }
+  table { width:100%; border-collapse:collapse; font-size:.95rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #cfc6b0; vertical-align:top; }
+  th { font-family:var(--head); text-transform:uppercase; letter-spacing:.05em; font-size:1rem; }
+  .tbl { overflow-x:auto; }
+  .tag { background:var(--gold); border:1.5px solid var(--ink); border-radius:3px; padding:0 6px; font-weight:700; font-size:.8rem; }
+  .muted { color:var(--muted); }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width:560px){ .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vote results</h1>
+
+  <div class="card" id="login">
+    <form id="login-form">
+      <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+      <button type="submit">View</button>
+      <div class="err" id="err" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="out" style="display:none"></div>
+</div>
+<script>
+(function () {
+  var DAYS = { sat: "Saturday", sun: "Sunday" };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function fmt(d) { return new Date(d).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); }
+  function timeLabel(t) { var p = t.split("-"); return DAYS[p[0]] + " " + p[1]; }
+
+  function bars(title, rows) {
+    var c = el("div", "card"); c.appendChild(el("h2", null, title));
+    var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
+    rows.forEach(function (r) {
+      var row = el("div", "bar-row");
+      row.appendChild(el("div", "bar-label", r[0]));
+      var bar = el("div", "bar"), fill = el("i"); fill.style.width = (r[1] / max * 100) + "%"; bar.appendChild(fill);
+      row.appendChild(bar); row.appendChild(el("div", "bar-n", r[1]));
+      c.appendChild(row);
+    });
+    return c;
+  }
+
+  function render(data) {
+    var out = document.getElementById("out"); out.textContent = "";
+    var v = data.votes;
+    var sports = ["soccer", "baseball", "basketball"].map(function (s) { return [s, v.filter(function (x) { return x.sport === s; }).length]; });
+    var tally = {};
+    v.forEach(function (x) { (x.times || []).forEach(function (t) { tally[t] = (tally[t] || 0) + 1; }); });
+    var times = Object.keys(tally).sort(function (a, b) { return tally[b] - tally[a]; }).map(function (t) { return [timeLabel(t), tally[t]]; });
+
+    var top = el("div", "card");
+    top.appendChild(el("h2", null, v.length + " vote" + (v.length === 1 ? "" : "s")));
+    out.appendChild(top);
+
+    var g = el("div", "grid");
+    g.appendChild(bars("Game", sports));
+    g.appendChild(bars("Times", times.length ? times : [["No votes yet", 0]]));
+    out.appendChild(g);
+
+    var caps = v.filter(function (x) { return x.captain; });
+    var cc = el("div", "card"); cc.appendChild(el("h2", null, "Captain volunteers (" + caps.length + ")"));
+    cc.appendChild(el("div", caps.length ? "" : "muted", caps.length ? caps.map(function (x) { return x.name + " (" + x.sport + ")"; }).join(", ") : "None yet"));
+    out.appendChild(cc);
+
+    var vc = el("div", "card"); vc.appendChild(el("h2", null, "Everyone"));
+    var wrap = el("div", "tbl"), t = el("table"), thead = el("tr");
+    ["Name", "Game", "Captain", "Times", "When"].forEach(function (h) { thead.appendChild(el("th", null, h)); });
+    t.appendChild(thead);
+    v.forEach(function (x) {
+      var tr = el("tr");
+      tr.appendChild(el("td", null, x.name));
+      tr.appendChild(el("td", null, x.sport));
+      var cap = el("td"); if (x.captain) cap.appendChild(el("span", "tag", "yes")); tr.appendChild(cap);
+      tr.appendChild(el("td", null, (x.times || []).map(timeLabel).join(", ")));
+      tr.appendChild(el("td", "muted", fmt(x.created_at)));
+      t.appendChild(tr);
+    });
+    wrap.appendChild(t); vc.appendChild(wrap); out.appendChild(vc);
+
+    var cm = el("div", "card"); cm.appendChild(el("h2", null, "Chat"));
+    if (!data.chat.length) cm.appendChild(el("div", "muted", "No messages"));
+    data.chat.forEach(function (m) {
+      var p = el("div"); p.style.margin = "4px 0";
+      var b = el("b", null, m.name + ": "); p.appendChild(b); p.appendChild(document.createTextNode(m.message));
+      p.appendChild(el("span", "muted", "  " + fmt(m.created_at)));
+      cm.appendChild(p);
+    });
+    out.appendChild(cm);
+    out.style.display = "block";
+    document.getElementById("login").style.display = "none";
+  }
+
+  function load(pw, auto) {
+    fetch("/api/results", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.d.error || "Error");
+        try { sessionStorage.setItem("pu_results_pw", pw); } catch (e) {}
+        render(res.d);
+      })
+      .catch(function (e) { if (!auto) document.getElementById("err").textContent = e.message; });
+  }
+
+  document.getElementById("login-form").addEventListener("submit", function (e) {
+    e.preventDefault(); document.getElementById("err").textContent = "";
+    load(document.getElementById("pw").value, false);
+  });
+  try { var saved = sessionStorage.getItem("pu_results_pw"); if (saved) load(saved, true); } catch (e) {}
+})();
+</script>
+</body>
+</html>
